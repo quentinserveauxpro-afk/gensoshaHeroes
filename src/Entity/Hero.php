@@ -50,6 +50,9 @@ class Hero
     #[ORM\Column]
     private ?int $xp = null;
 
+    #[ORM\ManyToOne(inversedBy: 'heroes')]
+    private ?Mission $missions = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -195,6 +198,18 @@ class Hero
     public function setXp(int $xp): static
     {
         $this->xp = $xp;
+
+        return $this;
+    }
+
+    public function getManyToOne(): ?Mission
+    {
+        return $this->missions;
+    }
+
+    public function setManyToOne(?Mission $missions): static
+    {
+        $this->missions = $missions;
 
         return $this;
     }
