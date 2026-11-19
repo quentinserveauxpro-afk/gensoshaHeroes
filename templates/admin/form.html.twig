@@ -1,0 +1,12 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ titre }}{% endblock %}
+{% block content %}
+    <h1 class="headline-lg">{{ titre }}</h1>
+    {{ form_start(form, {attr: {class: 'card stack', novalidate: 'novalidate'}}) }}
+        <div class="form-grid">{{ form_widget(form) }}</div>
+        <div class="row">
+            <button type="submit" class="btn btn--primary">Enregistrer</button>
+            <a class="btn btn--soft" href="{{ retour }}">Annuler</a>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}

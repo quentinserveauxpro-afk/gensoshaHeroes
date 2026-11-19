@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+{% block title %}Utilisateurs{% endblock %}
+{% block content %}
+    <div class="row row--between">
+        <h1 class="headline-lg">Utilisateurs</h1>
+        <a class="btn btn--dark" href="{{ path('app_admin_user_new') }}">{{ include('components/_icon.html.twig', {name: 'person_add'}) }} Nouvel utilisateur</a>
+    </div>
+    <div class="table-wrap"><table class="table">
+        <caption class="sr-only">Utilisateurs</caption>
+        <thead><tr><th scope="col">E-mail</th><th scope="col">Nom</th><th scope="col">Rôles</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>{% for u in users %}
+            <tr><td>{{ u.email }}</td><td>{{ u.nom }}<br><span class="label-md muted">{{ u.fonction }}</span></td>
+                <td>{% for r in u.roles|filter(r => r != 'ROLE_USER') %}{{ include('components/_badge.html.twig', {label: r|replace({'ROLE_': ''}), tone: r == 'ROLE_ADMIN' ? 'solid' : 'ok'}) }} {% endfor %}</td>
+                <td><a class="btn btn--soft btn--sm" href="{{ path('app_admin_user_edit', {id: u.id}) }}">Modifier</a></td></tr>
+        {% endfor %}</tbody>
+    </table></div>
+{% endblock %}

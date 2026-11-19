@@ -1,0 +1,20 @@
+{% extends 'base.html.twig' %}
+{% block title %}Vilains{% endblock %}
+{% block content %}
+    <div class="row row--between">
+        <h1 class="headline-lg">Registre des vilains</h1>
+        <a class="btn btn--dark" href="{{ path('app_admin_villain_new') }}">{{ include('components/_icon.html.twig', {name: 'add'}) }} Nouveau vilain</a>
+    </div>
+    <div class="table-wrap"><table class="table">
+        <caption class="sr-only">Vilains</caption>
+        <thead><tr><th scope="col">Nom</th><th scope="col">Menace</th><th scope="col">Combat</th><th scope="col">Intelligence</th><th scope="col">Statut</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>{% for v in villains %}
+            <tr>
+                <td><strong>{{ v.nom }}</strong><br><span class="label-md muted">{{ v.description }}</span></td>
+                <td>{{ include('components/_gauge.html.twig', {value: v.niveauMenace, max: 10, label: 'Menace', display: v.niveauMenace ~ '/10', tone: v.niveauMenace >= 7 ? 'danger' : (v.niveauMenace >= 4 ? 'warn' : 'ok'), thin: true}) }}</td>
+                <td>{{ v.combat }}</td><td>{{ v.intelligence }}</td><td>{{ v.statut.label }}</td>
+                <td><a class="btn btn--soft btn--sm" href="{{ path('app_admin_villain_edit', {id: v.id}) }}">Modifier</a></td>
+            </tr>
+        {% endfor %}</tbody>
+    </table></div>
+{% endblock %}
