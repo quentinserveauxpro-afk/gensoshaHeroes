@@ -1,0 +1,7 @@
+{% for type, messages in app.flashes %}
+    {% for message in messages %}
+        <div class="flash flash--{{ type }}" role="{{ type == 'danger' ? 'alert' : 'status' }}">
+            {{ include('components/_icon.html.twig', {name: type == 'danger' ? 'error' : 'check_circle'}) }} {{ message }}
+        </div>
+    {% endfor %}
+{% endfor %}

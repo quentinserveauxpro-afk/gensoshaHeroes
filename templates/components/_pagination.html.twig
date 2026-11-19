@@ -1,0 +1,13 @@
+{# Paramètres : page, pages, route, params (query) , label #}
+<nav class="pager" aria-label="Pagination">
+    <span class="label-md">{{ label|default('Page ' ~ page ~ ' sur ' ~ pages) }}</span>
+    <span class="row" style="gap:.5rem">
+        {% if page > 1 %}
+            <a class="btn" href="{{ path(route, params|merge({page: page - 1})) }}" aria-label="Page précédente">{{ include('components/_icon.html.twig', {name: 'chevron_left'}) }}</a>
+        {% endif %}
+        <span class="label-md">{{ page }} / {{ pages }}</span>
+        {% if page < pages %}
+            <a class="btn" href="{{ path(route, params|merge({page: page + 1})) }}" aria-label="Page suivante">{{ include('components/_icon.html.twig', {name: 'chevron_right'}) }}</a>
+        {% endif %}
+    </span>
+</nav>

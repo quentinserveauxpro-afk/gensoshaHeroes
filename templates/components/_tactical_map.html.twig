@@ -1,0 +1,72 @@
+{# Carte tactique SVG abstraite alimentée par TacticalMapProvider (coordonnées en km).
+   Paramètres : carte, selection, hud (bloc HTML optionnel passé via variable) #}
+{% set W = carte.largeur %}{% set H = carte.hauteur %}
+<section class="map-wrap" data-controller="tactical-map" aria-labelledby="carte-titre">
+    <h2 id="carte-titre" class="sr-only">Carte tactique</h2>
+    <div class="map-toolbar label-sm">
+        <span>Calques :</span>
+        <label><input type="checkbox" checked data-action="tactical-map#toggle" data-layer="zones"> Zones de menace</label>
+        <label><input type="checkbox" checked data-action="tactical-map#toggle" data-layer="heros"> Héros</label>
+        {% if hud is defined and hud %}<label><input type="checkbox" checked data-action="tactical-map#toggleHud"> HUD mission</label>{% endif %}
+    </div>
+    <svg class="map-svg" viewBox="0 0 {{ W }} {{ H }}" preserveAspectRatio="xMidYMid slice" role="group" aria-label="Positions des héros et des missions">
+        <defs>
+            <pattern id="grille" width="10" height="10" patternUnits="userSpaceOnUse">
+                <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(192,214,177,.08)" stroke-width=".2"/>
+            </pattern>
+            <radialGradient id="halo"><stop offset="0" stop-color="#ff4d4d" stop-opacity=".55"/><stop offset="1" stop-color="#ff4d4d" stop-opacity="0"/></radialGradient>
+        </defs>
+        <rect width="{{ W }}" height="{{ H }}" fill="#1d2a17"/>
+        <rect width="{{ W }}" height="{{ H }}" fill="url(#grille)"/>
+        <path d="M0 78 C 25 70, 45 86, 70 76 S 100 80, 100 80 L100 100 L0 100 Z" fill="#162111"/>
+        <g class="map-layer-zones">
+            {% for zone in carte.zones %}
+                <circle class="map-zone--{{ zone.tone }}" cx="{{ zone.x }}" cy="{{ zone.y }}" r="{{ zone.rayon }}" stroke-width=".3" stroke-dasharray="1 .8"/>
+            {% endfor %}
+        </g>
+        {# QG #}
+        <g transform="translate({{ carte.base.x }} {{ carte.base.y }})" aria-label="QG Genosha" role="img">
+            <rect x="-1.6" y="-1.6" width="3.2" height="3.2" rx=".6" fill="#c0d6b1"/>
+            <text y="4.4" text-anchor="middle" font-size="2" fill="#c0d6b1" font-family="JetBrains Mono">QG</text>
+        </g>
+        {# Liaisons héros → mission #}
+        <g class="map-layer-heros">
+            {% for h in carte.heros %}
+                {% for m in carte.missions %}
+                    {% if h.missionId == m.id %}
+                        <line x1="{{ h.x }}" y1="{{ h.y }}" x2="{{ m.x }}" y2="{{ m.y }}" stroke="rgba(245,158,11,.5)" stroke-width=".25" stroke-dasharray=".8 .6"/>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </g>
+        {% for m in carte.missions %}
+            <a href="{{ path('app_tactical_center', app.request.query.all|merge({mission: m.id})) }}" class="map-marker" aria-label="Mission {{ m.label }}">
+                <g transform="translate({{ m.x }} {{ m.y }})">
+                    {% if m.urgence == 'CRITIQUE' %}<circle r="6" fill="url(#halo)"/>{% endif %}
+                    <circle class="map-marker__ring" r="{{ m.selectionnee ? 2.6 : 2 }}" fill="{{ m.urgence == 'CRITIQUE' ? '#ba1a1a' : (m.urgence == 'HAUTE' ? '#f59e0b' : '#4b5e40') }}" stroke="#fff" stroke-width="{{ m.selectionnee ? 0.6 : 0.25 }}"/>
+                    <text y=".7" text-anchor="middle" font-size="2" fill="#fff" font-weight="700">!</text>
+                    <text y="{{ -3.4 }}" text-anchor="middle" font-size="1.8" fill="#ddf9cc" font-family="JetBrains Mono">{{ m.label|tronquer(26)|upper }}</text>
+                </g>
+            </a>
+        {% endfor %}
+        <g class="map-layer-heros">
+            {% for h in carte.heros %}
+                <a href="{{ path('app_hero_show', {id: h.id}) }}" class="map-marker" aria-label="{{ h.label }}{% if h.distanceSelection is not null %}, à {{ h.distanceSelection }} km de la mission sélectionnée{% endif %}">
+                    <g transform="translate({{ h.x }} {{ h.y }})">
+                        <circle class="map-marker__ring" r="1.6" fill="#ffffff" stroke="{{ h.tone == 'warn' ? '#f59e0b' : (h.tone == 'danger' ? '#ba1a1a' : '#4b5e40') }}" stroke-width=".4"/>
+                        <text y=".55" text-anchor="middle" font-size="1.4" font-weight="800" fill="#34462a">{{ h.initiales }}</text>
+                        {% if h.missionId and selection and h.missionId == selection.id %}
+                            <text x="2.2" y=".5" font-size="1.4" fill="#fff" font-family="JetBrains Mono">{{ h.label }} · {{ h.distanceSelection }} km</text>
+                        {% endif %}
+                    </g>
+                </a>
+            {% endfor %}
+        </g>
+    </svg>
+    {% if hud is defined and hud %}<div class="map-hud" data-tactical-map-target="hud">{{ hud|raw }}</div>{% endif %}
+    <div class="map-footer" aria-live="polite">
+        <span>● MISSIONS ACTIVES : {{ carte.missions|length }}</span>
+        <span>HÉROS SUR CARTE : {{ carte.heros|length }}</span>
+        <span>GRILLE : {{ W }} × {{ H }} KM</span>
+    </div>
+</section>

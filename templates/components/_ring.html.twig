@@ -1,0 +1,16 @@
+{# Jauge circulaire. Paramètres : value (0-100), size (px), stroke, label, sublabel, tone #}
+{% set size = size|default(72) %}
+{% set stroke = stroke|default(8) %}
+{% set r = (size - stroke) / 2 %}
+{% set c = 2 * 3.14159 * r %}
+{% set v = value < 0 ? 0 : (value > 100 ? 100 : value) %}
+<div class="ring ring--{{ tone|default(jauge_tone(v)) }}" style="--size: {{ size }}px" role="img" aria-label="{{ sublabel|default('Taux') }} : {{ v }} %">
+    <svg viewBox="0 0 {{ size }} {{ size }}" width="{{ size }}" height="{{ size }}" aria-hidden="true">
+        <circle class="ring__bg" cx="{{ size / 2 }}" cy="{{ size / 2 }}" r="{{ r }}" fill="none" stroke-width="{{ stroke }}"/>
+        <circle class="ring__fg" cx="{{ size / 2 }}" cy="{{ size / 2 }}" r="{{ r }}" fill="none" stroke-width="{{ stroke }}"
+                stroke-dasharray="{{ c }}" stroke-dashoffset="{{ c * (1 - v / 100) }}"/>
+    </svg>
+    <span class="ring__label" style="font-size: {{ size * 0.22 }}px">{{ label|default(v ~ '%') }}
+        {% if sublabel|default(null) and size > 120 %}<br><span class="label-sm">{{ sublabel }}</span>{% endif %}
+    </span>
+</div>

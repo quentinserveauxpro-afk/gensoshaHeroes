@@ -1,0 +1,16 @@
+{# Bandeau d'alerte persistée. Paramètre : alerte #}
+<div class="urgent-banner" role="alert">
+    <span class="pulse" aria-hidden="true"></span>
+    {{ include('components/_badge.html.twig', {label: alerte.titre, tone: 'solid-danger'}) }}
+    <span class="urgent-banner__msg">{{ alerte.message }}</span>
+    <span class="urgent-banner__code">CODE : {{ alerte.code }}</span>
+    {% if alerte.mission and alerte.mission.affectationsActives is empty and not alerte.mission.statut.closed %}
+        <a class="btn btn--danger btn--sm" href="{{ path('app_squad_builder_mission', {id: alerte.mission.id}) }}">Scramble Unités</a>
+    {% elseif alerte.requete and alerte.requete.statut.ouverte %}
+        <a class="btn btn--danger btn--sm" href="{{ path('app_requete_index') }}#requete-{{ alerte.requete.id }}">Traiter</a>
+    {% endif %}
+    <form method="post" action="{{ path('app_alerte_ack', {id: alerte.id}) }}" class="inline">
+        <input type="hidden" name="_token" value="{{ csrf_token('acquitter' ~ alerte.id) }}">
+        <button type="submit" class="btn-link" aria-label="Acquitter l'alerte {{ alerte.code }}">{{ include('components/_icon.html.twig', {name: 'close'}) }}</button>
+    </form>
+</div>

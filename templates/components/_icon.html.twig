@@ -1,0 +1,2 @@
+{# Icône décorative Material Symbols. Paramètres : name, label (facultatif → rend l'icône parlante). #}
+<span class="material-symbols-outlined" {% if label|default(null) %}role="img" aria-label="{{ label }}"{% else %}aria-hidden="true"{% endif %}>{{ name }}</span>

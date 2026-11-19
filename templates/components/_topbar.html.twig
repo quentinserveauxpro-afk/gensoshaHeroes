@@ -1,0 +1,23 @@
+{% set alerte = alertes_actives(1)|first %}
+<header class="topbar">
+    <form class="search" action="{{ path('app_hero_index') }}" method="get" role="search">
+        {{ include('components/_icon.html.twig', {name: 'search'}) }}
+        <label for="recherche-globale" class="sr-only">Rechercher un héros</label>
+        <input id="recherche-globale" type="search" name="q" placeholder="Rechercher un héros, une spécialité…" value="{{ app.request.query.get('q') }}">
+    </form>
+    {% if alerte %}
+        <a class="topbar__alert" href="{{ alerte.mission ? path('app_tactical_center', {mission: alerte.mission.id}) : path('app_requete_index') }}">
+            {{ include('components/_icon.html.twig', {name: 'warning'}) }}
+            <span><strong>{{ alerte.titre }} :</strong> {{ alerte.message|tronquer(48) }}</span>
+        </a>
+    {% endif %}
+    <span class="topbar__spacer"></span>
+    <a class="btn btn--amber" href="{{ path('app_requete_index') }}#saisie">
+        {{ include('components/_icon.html.twig', {name: 'priority_high'}) }} Déclarer Urgence Alpha
+    </a>
+    {% if app.user %}
+        <a class="avatar-btn" href="{{ path('app_logout') }}" aria-label="Se déconnecter ({{ app.user.userIdentifier }})" title="Se déconnecter">
+            {{ include('components/_icon.html.twig', {name: 'logout'}) }}
+        </a>
+    {% endif %}
+</header>

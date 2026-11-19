@@ -1,0 +1,4 @@
+{# Paramètres : label, tone (ok|warn|danger|muted|solid|solid-danger|solid-warn), dot (bool), class #}
+<span class="badge{% if tone|default(null) %} badge--{{ tone }}{% endif %}{% if class|default(null) %} {{ class }}{% endif %}">
+    {%- if dot|default(false) %}<span class="badge__dot" aria-hidden="true"></span>{% endif %}{{ label }}
+</span>

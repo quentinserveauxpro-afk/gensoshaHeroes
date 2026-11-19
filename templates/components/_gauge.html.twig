@@ -1,0 +1,13 @@
+{# Jauge linéaire. Paramètres : value, max (100), label (visible), aria_label (lecteurs d'écran), display (texte de droite), tone (auto si absent), thin #}
+{% set max = max|default(100) %}
+{% set pct = max > 0 ? (value / max * 100)|round : 0 %}
+{% set pct = pct < 0 ? 0 : (pct > 100 ? 100 : pct) %}
+{% set tone = tone|default(jauge_tone(pct)) %}
+<div class="gauge gauge--{{ tone }}{% if thin|default(false) %} gauge--thin{% endif %}">
+    {% if label|default(null) or display|default(null) %}
+        <div class="gauge__head"><span>{{ label|default('') }}</span><span>{{ display|default(pct ~ ' %') }}</span></div>
+    {% endif %}
+    <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="{{ max }}" aria-valuenow="{{ value }}" aria-label="{{ aria_label|default(label|default('Progression')) }}">
+        <div class="gauge__fill" style="width: {{ pct }}%"></div>
+    </div>
+</div>

@@ -1,0 +1,10 @@
+{# Badge « RANG X • ÉTAT » d'une mission. Paramètre : mission #}
+{% set d = mission.difficulte %}
+{% set equipe = mission.affectationsActives|length %}
+{% set etat = mission.critique ? 'Critique' : mission.niveauUrgence.label %}
+{% if equipe == 0 and mission.statut.value != 'BROUILLON' %}{% set etat = 'Non assigné' %}{% endif %}
+{{ include('components/_badge.html.twig', {
+    label: (d ? d.label : 'Rang ?') ~ ' • ' ~ etat,
+    tone: mission.niveauUrgence.tone == 'ok' ? 'ok' : mission.niveauUrgence.tone,
+    dot: mission.niveauUrgence.urgent,
+}) }}

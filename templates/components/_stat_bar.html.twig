@@ -1,0 +1,10 @@
+{# Barre de statistique. Paramètres : label, icon, value, bonus (facultatif) #}
+<div class="gauge">
+    <div class="gauge__head">
+        <span>{% if icon|default(null) %}{{ include('components/_icon.html.twig', {name: icon}) }} {% endif %}{{ label }}</span>
+        <span>{{ value }} / 100{% if bonus|default(0) > 0 %} <span class="text-warn">(+{{ bonus }})</span>{% endif %}</span>
+    </div>
+    <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ value }}" aria-label="{{ label }}">
+        <div class="gauge__fill" style="width: {{ value }}%"></div>
+    </div>
+</div>

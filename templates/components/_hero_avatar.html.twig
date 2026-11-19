@@ -1,0 +1,5 @@
+{# Portrait d'un héros. Paramètres : hero, size (px), status (bool), square (bool) #}
+<span class="avatar{% if square|default(false) %} avatar--square{% endif %}" style="--s: {{ size|default(40) }}px">
+    {% if hero.image %}<img src="{{ hero.image starts with 'http' ? hero.image : asset(hero.image) }}" alt="">{% else %}{{ hero.initiales }}{% endif %}
+    {% if status|default(false) %}<span class="avatar__status avatar__status--{{ hero.statut.tone }}" aria-hidden="true"></span>{% endif %}
+</span>

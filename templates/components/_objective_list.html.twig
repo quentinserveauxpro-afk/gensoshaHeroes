@@ -1,0 +1,34 @@
+{# Liste d'objectifs ordonnés. Paramètres : objectifs, editable (bool), mission #}
+<ol class="objectives">
+    {% for objectif in objectifs %}
+        {% set etat = objectif.etat %}
+        <li class="objective objective--{{ etat }}">
+            <span class="objective__icon">{{ include('components/_icon.html.twig', {
+                name: etat == 'termine' ? 'check_circle' : (etat == 'en_cours' ? 'progress_activity' : 'radio_button_unchecked'),
+                label: etat == 'termine' ? 'Terminé' : (etat == 'en_cours' ? 'En cours' : 'En attente'),
+            }) }}</span>
+            <span class="objective__title">{{ objectif.titre }}{% if not objectif.obligatoire %} <span class="muted">(facultatif)</span>{% endif %}</span>
+            <span class="objective__pct">{{ etat == 'en_attente' ? 'En attente' : objectif.progression ~ '%' }}</span>
+            {% if etat == 'en_cours' %}{{ include('components/_gauge.html.twig', {value: objectif.progression, thin: true, tone: 'warn', aria_label: 'Progression ' ~ objectif.titre}) }}{% endif %}
+            {% if objectif.description %}<span class="objective__desc">{{ objectif.description }}</span>{% endif %}
+            {% if editable|default(false) %}
+                <div class="objective__desc row">
+                    <form method="post" action="{{ path('app_mission_objectif_progress', {id: mission.id, objectif: objectif.id}) }}" class="row" style="flex:1">
+                        <input type="hidden" name="_token" value="{{ csrf_token('objectif' ~ objectif.id) }}">
+                        <label class="sr-only" for="prog-{{ objectif.id }}">Progression de « {{ objectif.titre }} »</label>
+                        <input id="prog-{{ objectif.id }}" type="range" name="progression" min="0" max="100" step="5" value="{{ objectif.progression }}" style="flex:1">
+                        <button type="submit" class="btn btn--soft btn--sm">Mettre à jour</button>
+                    </form>
+                    {% if is_granted('ROLE_ADMIN') %}
+                        <form method="post" action="{{ path('app_mission_objectif_delete', {id: mission.id, objectif: objectif.id}) }}" class="inline">
+                            <input type="hidden" name="_token" value="{{ csrf_token('supprimer-objectif' ~ objectif.id) }}">
+                            <button type="submit" class="btn-link text-danger" aria-label="Supprimer l'objectif {{ objectif.titre }}">{{ include('components/_icon.html.twig', {name: 'delete'}) }}</button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </li>
+    {% else %}
+        <li class="muted">Aucun objectif défini.</li>
+    {% endfor %}
+</ol>
