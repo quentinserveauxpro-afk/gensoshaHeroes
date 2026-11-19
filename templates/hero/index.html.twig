@@ -1,0 +1,78 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Roster des Héros{% endblock %}
+
+{% block content %}
+    {% set q = {q: filtres.q, role: filtres.role ? filtres.role.value : null, tri: filtres.tri}|filter(v => v is not null and v != '') %}
+    <section class="card card--tinted row row--between" aria-labelledby="roster-titre">
+        <div class="row">
+            <span class="kpi__icon" style="width:48px;height:48px">{{ include('components/_icon.html.twig', {name: 'shield_person'}) }}</span>
+            <div>
+                <h1 id="roster-titre" class="headline-md">Registre Opérationnel des Héros {{ include('components/_badge.html.twig', {label: 'SEC-DEF V.8', tone: 'ok'}) }}</h1>
+                <p class="muted" style="margin:0">Surveillance tactique continue, habilitations de risque et biométrie active</p>
+                <div class="chip-group" style="margin-top:.5rem">
+                    {{ include('components/_badge.html.twig', {label: 'Roster actif : ' ~ effectif ~ ' enregistrés', tone: 'muted', dot: true}) }}
+                    {{ include('components/_badge.html.twig', {label: (parStatut['DISPONIBLE'] ?? 0) ~ ' disponibles', tone: 'ok', dot: true}) }}
+                    {{ include('components/_badge.html.twig', {label: (parStatut['EN_MISSION'] ?? 0) ~ ' en mission', tone: 'warn', dot: true}) }}
+                    {{ include('components/_badge.html.twig', {label: (parStatut['BLESSE'] ?? 0) ~ ' en convalescence', tone: 'danger', dot: true}) }}
+                </div>
+            </div>
+        </div>
+        {% if is_granted('ROLE_ADMIN') %}
+            <a class="btn btn--dark" href="{{ path('app_hero_new') }}">{{ include('components/_icon.html.twig', {name: 'person_add'}) }} Enrôler un nouveau métahumain</a>
+        {% endif %}
+    </section>
+
+    <form method="get" action="{{ path('app_hero_index') }}" class="card row" aria-label="Filtrer le roster">
+        <div class="field" style="flex:1 1 14rem">
+            <label for="h-q" class="sr-only">Filtrer par nom</label>
+            <input id="h-q" type="search" name="q" value="{{ filtres.q }}" placeholder="Filtrer par nom, alias ou spécialité">
+        </div>
+        <fieldset class="row" style="gap:.4rem">
+            <legend class="label-sm" style="float:left;margin-right:.5rem">Rôles :</legend>
+            <label class="choice"><input type="radio" name="role" value="" {% if not filtres.role %}checked{% endif %}> Tous ({{ effectif }})</label>
+            {% for r in enum_cases('App\\Enum\\HeroRole') %}
+                <label class="choice"><input type="radio" name="role" value="{{ r.value }}" {% if filtres.role == r %}checked{% endif %}> {{ r.label }} ({{ parRole[r.value] ?? 0 }})</label>
+            {% endfor %}
+        </fieldset>
+        <div class="field">
+            <label for="h-tri" class="sr-only">Trier par</label>
+            <select id="h-tri" name="tri">
+                {% for k, l in {niveau: 'Rang & niveau (desc.)', nom: 'Nom', sante: 'Santé'} %}
+                    <option value="{{ k }}" {% if filtres.tri == k %}selected{% endif %}>Tri : {{ l }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn--soft">Appliquer</button>
+    </form>
+
+    <div class="roster">
+        <section class="stack" aria-labelledby="unites-titre">
+            <h2 id="unites-titre" class="label-sm row row--between">Unités déployables ({{ heros|length }} affichées) <span class="label-md">{{ total }} au total</span></h2>
+            {% for h in heros %}
+                <a class="card hero-row" href="{{ path('app_hero_show', {id: h.id}|merge(q)|merge({page: page})) }}" {% if hero and hero.id == h.id %}aria-current="page"{% endif %}>
+                    {{ include('components/_hero_avatar.html.twig', {hero: h, size: 56, status: true}) }}
+                    <span class="stack-sm" style="gap:.3rem">
+                        <span class="row row--between">
+                            <span class="hero-row__name {{ h.santePourcentage < 40 ? 'text-danger' }}">{{ h.nom }} <small>({{ h.alias }})</small></span>
+                            {{ include('components/_badge.html.twig', {label: h.rang, tone: h.rang == 'OMEGA' ? 'solid-warn' : (h.rang == 'ALPHA' ? 'solid' : 'muted')}) }}
+                        </span>
+                        <span class="label-md">Niveau {{ h.niveau }} • {{ h.role.label }} • <span class="{{ h.santePourcentage < 40 ? 'text-danger' }}">Santé : {{ h.santePourcentage }}%</span></span>
+                        {{ include('components/_gauge.html.twig', {value: h.santePourcentage, thin: true, aria_label: 'Santé ' ~ h.nom}) }}
+                        <span class="row row--between label-md">
+                            {{ include('components/_badge.html.twig', {label: h.statut.label, tone: h.statut.tone, dot: true}) }}
+                            <span>{{ h.secteur }}</span>
+                        </span>
+                    </span>
+                </a>
+            {% else %}
+                <p class="card muted">Aucun héros ne correspond.</p>
+            {% endfor %}
+            {{ include('components/_pagination.html.twig', {route: 'app_hero_index', params: q, label: 'Page ' ~ page ~ ' sur ' ~ pages ~ ' — ' ~ total ~ ' héros'}) }}
+        </section>
+
+        {% if hero %}
+            {{ include('hero/_detail.html.twig') }}
+        {% endif %}
+    </div>
+{% endblock %}

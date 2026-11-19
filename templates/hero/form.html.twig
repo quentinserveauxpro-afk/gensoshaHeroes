@@ -1,0 +1,31 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ titre }}{% endblock %}
+{% block content %}
+    <h1 class="headline-lg">{{ titre }}</h1>
+    {{ form_start(form, {attr: {class: 'stack', novalidate: 'novalidate'}}) }}
+        <section class="card stack" aria-labelledby="ident"><h2 id="ident" class="headline-sm">Identité</h2>
+            <div class="form-grid">
+                {{ form_row(form.nom) }}{{ form_row(form.alias) }}{{ form_row(form.rang) }}{{ form_row(form.role) }}
+                {{ form_row(form.statut) }}{{ form_row(form.specialite) }}{{ form_row(form.secteur) }}{{ form_row(form.image) }}
+                <div class="span-all">{{ form_row(form.description) }}</div>
+            </div>
+        </section>
+        <section class="card stack" aria-labelledby="prog"><h2 id="prog" class="headline-sm">Progression & santé</h2>
+            <div class="form-grid">
+                {{ form_row(form.niveau) }}{{ form_row(form.xp) }}{{ form_row(form.pointsDeVie) }}{{ form_row(form.pointsDeVieMaximum) }}{{ form_row(form.fatigue) }}
+            </div>
+        </section>
+        <section class="card stack" aria-labelledby="stats"><h2 id="stats" class="headline-sm">Statistiques (0-100)</h2>
+            <div class="form-grid">
+                {{ form_row(form.combat) }}{{ form_row(form.intelligence) }}{{ form_row(form.charisme) }}{{ form_row(form.mobilite) }}{{ form_row(form.vigueur) }}
+            </div>
+        </section>
+        <section class="card stack" aria-labelledby="pos"><h2 id="pos" class="headline-sm">Position & aptitudes</h2>
+            <div class="form-grid">{{ form_row(form.positionX) }}{{ form_row(form.positionY) }}{{ form_row(form.aptitudes) }}</div>
+        </section>
+        <div class="row">
+            <button type="submit" class="btn btn--primary">Enregistrer</button>
+            <a class="btn btn--soft" href="{{ hero.id ? path('app_hero_show', {id: hero.id}) : path('app_hero_index') }}">Annuler</a>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}

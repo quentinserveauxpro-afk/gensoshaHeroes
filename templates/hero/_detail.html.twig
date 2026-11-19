@@ -1,0 +1,126 @@
+{# Fiche détaillée d'un héros. Paramètres : hero, statsEffectives, bonusActifs #}
+{% set derniere = hero.affectations|first %}
+{% set reussies = hero.affectations|filter(a => a.mission.statut.value == 'TERMINEE')|length %}
+{% set closes = hero.affectations|filter(a => a.mission.statut.closed)|length %}
+<div class="stack">
+    <section class="card stack" aria-labelledby="hero-nom">
+        <div class="row" style="align-items:flex-start">
+            {{ include('components/_hero_avatar.html.twig', {hero: hero, size: 96, square: true}) }}
+            <div style="flex:1;min-width:14rem" class="stack-sm">
+                <h2 id="hero-nom" class="headline-lg"><span style="font-weight:800;text-transform:uppercase">{{ hero.nom }}</span> <span class="headline-md muted">/ {{ hero.alias }}</span></h2>
+                <div class="row">
+                    {{ include('components/_badge.html.twig', {label: 'Rang ' ~ hero.rang, tone: 'ok'}) }}
+                    {{ include('components/_badge.html.twig', {label: 'Niveau ' ~ hero.niveau, tone: 'solid'}) }}
+                    {{ include('components/_badge.html.twig', {label: hero.statut.label, tone: hero.statut.tone, dot: true}) }}
+                </div>
+                <p style="margin:0">Spécialité : <strong>{{ hero.specialite }}</strong></p>
+                <p class="label-md muted" style="margin:0">ID-{{ '%04d'|format(hero.id) }}-MET • {{ include('components/_icon.html.twig', {name: 'location_on'}) }} {{ hero.secteur }} (X {{ hero.positionX }} / Y {{ hero.positionY }})</p>
+                {% if hero.description %}<p class="muted" style="margin:0">{{ hero.description }}</p>{% endif %}
+            </div>
+            <div class="label-md" style="text-align:right">
+                <span class="label-sm muted">Dernier déploiement</span><br>
+                {{ derniere ? derniere.dateAffectation|date('d/m/Y H:i') ~ ' — ' ~ derniere.mission.nom|tronquer(30) : 'Aucun' }}
+            </div>
+        </div>
+        <div class="panel stack-sm">
+            {{ include('components/_gauge.html.twig', {
+                value: hero.xp, max: xp_seuil(hero),
+                label: 'Progression métahumaine (vers niveau ' ~ (hero.niveau + 1) ~ ')',
+                display: hero.xp|number_format(0, ',', ' ') ~ ' / ' ~ xp_seuil(hero)|number_format(0, ',', ' ') ~ ' XP (' ~ xp_pourcentage(hero) ~ '%)',
+                tone: 'ok',
+            }) }}
+        </div>
+    </section>
+
+    <section class="card stack" aria-labelledby="tele-titre">
+        <h2 id="tele-titre" class="headline-md card__title">{{ include('components/_icon.html.twig', {name: 'ecg_heart'}) }} Télémétrie Médicale & État Vital</h2>
+        <div class="grid grid-2">
+            <div class="panel stack-sm">
+                {{ include('components/_gauge.html.twig', {
+                    value: hero.pointsDeVie, max: hero.pointsDeVieMaximum, label: 'Jauge vitale principale',
+                    display: hero.pointsDeVie ~ ' / ' ~ hero.pointsDeVieMaximum ~ ' PV (' ~ hero.santePourcentage ~ '%)',
+                }) }}
+                {{ include('components/_gauge.html.twig', {value: hero.fatigue, label: 'Indice de fatigue', tone: hero.fatigue >= 70 ? 'danger' : (hero.fatigue >= 40 ? 'warn' : 'ok'), thin: true}) }}
+            </div>
+            <div class="panel">
+                <h3 class="label-sm">Bonus actifs</h3>
+                <ul class="history">
+                    {% for b in bonusActifs %}
+                        <li><span>{{ b.bonus.nom }} <span class="muted label-md">({{ b.origine.label }}{{ b.cumulable ? '' : ', non cumulable' }})</span></span>
+                            <strong>{{ b.bonus.statistique.label }} {{ b.valeur >= 0 ? '+' }}{{ b.valeur }}</strong></li>
+                    {% else %}
+                        <li class="muted">Aucun bonus en vigueur.</li>
+                    {% endfor %}
+                </ul>
+                {% if hero.aptitudes is not empty %}
+                    <h3 class="label-sm" style="margin-top:.75rem">Aptitudes & immunités</h3>
+                    <div class="chip-group">{% for a in hero.aptitudes %}<span class="chip chip--req">{{ a.nom }}</span>{% endfor %}</div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <section class="card" aria-labelledby="radar-titre">
+        <h2 id="radar-titre" class="headline-md card__title">{{ include('components/_icon.html.twig', {name: 'radar'}) }} Profil Statistique & Radar Métahumain</h2>
+        <div class="grid grid-2" style="align-items:center">
+            {% set labels = {COMBAT: ['Combat & CàC', 'swords'], VIGUEUR: ['Vigueur & encaissement', 'fitness_center'], CHARISME: ['Charisme & commandement', 'campaign'], INTELLIGENCE: ['Intelligence tactique', 'psychology'], MOBILITE: ['Mobilité & réflexes', 'sprint']} %}
+            <div class="radar" data-controller="radar-chart"
+                 data-radar-chart-labels-value="{{ ['Combat', 'Intelligence', 'Charisme', 'Mobilité', 'Vigueur']|json_encode }}"
+                 data-radar-chart-values-value="{{ [statsEffectives.COMBAT, statsEffectives.INTELLIGENCE, statsEffectives.CHARISME, statsEffectives.MOBILITE, statsEffectives.VIGUEUR]|json_encode }}">
+                <canvas data-radar-chart-target="canvas" role="img" aria-label="Radar des statistiques de {{ hero.nom }} : combat {{ statsEffectives.COMBAT }}, intelligence {{ statsEffectives.INTELLIGENCE }}, charisme {{ statsEffectives.CHARISME }}, mobilité {{ statsEffectives.MOBILITE }}, vigueur {{ statsEffectives.VIGUEUR }}"></canvas>
+            </div>
+            <div class="stat-bars">
+                {% for stat, meta in labels %}
+                    {{ include('components/_stat_bar.html.twig', {label: meta[0], icon: meta[1], value: statsEffectives[stat], bonus: statsEffectives[stat] - hero.stats[stat]}) }}
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <div class="grid grid-2">
+        <section class="card stack-sm" aria-labelledby="accr-titre">
+            <h2 id="accr-titre" class="label-sm">Historique des missions</h2>
+            <div class="grid grid-2" style="gap:.5rem">
+                <div class="panel"><span class="label-sm">Missions réussies</span><div class="kpi__value">{{ reussies }}</div></div>
+                <div class="panel"><span class="label-sm">Taux de succès</span><div class="kpi__value">{{ closes > 0 ? (reussies / closes * 100)|round : '—' }}{{ closes > 0 ? '%' }}</div></div>
+            </div>
+            <ul class="history">
+                {% for a in hero.affectations %}
+                    <li>
+                        <a href="{{ path('app_mission_show', {id: a.mission.id}) }}">{{ a.mission.nom|tronquer(34) }}</a>
+                        <span class="row" style="gap:.3rem">
+                            {{ include('components/_badge.html.twig', {label: a.role.label, tone: 'muted'}) }}
+                            {{ include('components/_badge.html.twig', {label: a.mission.statut.label, tone: a.mission.statut.value == 'TERMINEE' ? 'ok' : (a.mission.statut.value == 'ECHOUEE' ? 'danger' : 'warn')}) }}
+                        </span>
+                    </li>
+                {% else %}
+                    <li class="muted">Aucune mission.</li>
+                {% endfor %}
+            </ul>
+        </section>
+        <section class="card stack-sm" aria-labelledby="synergies-titre">
+            <h2 id="synergies-titre" class="label-sm">Synergies connues</h2>
+            <ul class="history">
+                {% for s in hero.synergies %}
+                    <li><span><strong>{{ s.nom }}</strong><br><span class="label-md muted">avec {{ s.heroes|filter(x => x.id != hero.id)|map(x => x.nom)|join(', ') }}</span></span>
+                        {{ include('components/_badge.html.twig', {label: s.statistique.label ~ ' +' ~ s.valeurBonus, tone: 'ok'}) }}</li>
+                {% else %}
+                    <li class="muted">Aucune synergie.</li>
+                {% endfor %}
+            </ul>
+        </section>
+    </div>
+
+    <section class="card row" aria-label="Actions">
+        {% if hero.disponible %}
+            <a class="btn btn--dark" href="{{ path('app_squad_builder') }}">{{ include('components/_icon.html.twig', {name: 'group_add'}) }} Assigner à une escouade</a>
+        {% endif %}
+        {% if is_granted('ROLE_ADMIN') %}
+            <a class="btn btn--soft" href="{{ path('app_hero_edit', {id: hero.id}) }}">{{ include('components/_icon.html.twig', {name: 'edit'}) }} Modifier la fiche</a>
+            <form method="post" action="{{ path('app_hero_delete', {id: hero.id}) }}" class="inline" onsubmit="return confirm('Retirer {{ hero.nom|e('js') }} du registre ?')">
+                <input type="hidden" name="_token" value="{{ csrf_token('supprimer-hero' ~ hero.id) }}">
+                <button type="submit" class="btn btn--secondary">{{ include('components/_icon.html.twig', {name: 'delete'}) }} Supprimer</button>
+            </form>
+        {% endif %}
+    </section>
+</div>
