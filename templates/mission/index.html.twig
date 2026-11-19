@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+{% block title %}Missions{% endblock %}
+{% block content %}
+    <div class="row row--between">
+        <h1 class="headline-lg">Missions</h1>
+        {% if is_granted('ROLE_ADMIN') %}<a class="btn btn--dark" href="{{ path('app_mission_new') }}">{{ include('components/_icon.html.twig', {name: 'add'}) }} Nouvelle mission</a>{% endif %}
+    </div>
+    <nav class="chip-group" aria-label="Filtrer par statut">
+        <a href="{{ path('app_mission_index') }}" {% if not statut %}aria-current="true"{% endif %}>Toutes</a>
+        {% for s in enum_cases('App\\Enum\\MissionStatut') %}
+            <a href="{{ path('app_mission_index', {statut: s.value}) }}" {% if statut == s %}aria-current="true"{% endif %}>{{ s.label }} ({{ compteurs[s.value] ?? 0 }})</a>
+        {% endfor %}
+    </nav>
+    <div class="table-wrap">
+        <table class="table">
+            <caption class="sr-only">Liste des missions</caption>
+            <thead><tr><th scope="col">Mission</th><th scope="col">Rang</th><th scope="col">Urgence</th><th scope="col">Statut</th><th scope="col">Équipe</th><th scope="col">Réussite</th><th scope="col">Temps restant</th></tr></thead>
+            <tbody>
+                {% for m in missions %}
+                    <tr>
+                        <td><a href="{{ path('app_mission_show', {id: m.id}) }}"><strong>{{ m.nom }}</strong></a><br><span class="label-md muted">{{ m.localisation }}</span></td>
+                        <td>{{ m.difficulte ? m.difficulte.label : m.niveauDeDifficulte }}</td>
+                        <td>{{ include('components/_badge.html.twig', {label: m.niveauUrgence.label, tone: m.niveauUrgence.tone}) }}</td>
+                        <td>{{ m.statut.label }}</td>
+                        <td>{{ m.affectationsActives|length }} / {{ m.tailleEquipeMinimale }}–{{ m.tailleEquipeMaximale }}</td>
+                        <td>{{ m.tauxDeReussite }}%</td>
+                        <td>{{ m.statut.closed ? '—' : include('components/_timer.html.twig', {mission: m}) }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7" class="muted">Aucune mission.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ include('components/_pagination.html.twig', {route: 'app_mission_index', params: statut ? {statut: statut.value} : {}}) }}
+{% endblock %}

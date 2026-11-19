@@ -1,0 +1,175 @@
+<?php
+
+namespace App\Controller;
+
+use App\Entity\Mission;
+use App\Entity\ObjectifMission;
+use App\Enum\Difficulte;
+use App\Enum\MissionStatut;
+use App\Enum\NiveauUrgence;
+use App\Form\MissionType;
+use App\Form\ObjectifMissionType;
+use App\Repository\MissionRepository;
+use App\Repository\RequeteCitoyenneRepository;
+use App\Service\Mission\MissionLifecycleService;
+use App\Service\Mission\MissionSuccessCalculator;
+use App\Service\Mission\MissionWorkflowException;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+
+#[IsGranted('ROLE_OPERATOR')]
+#[Route('/missions')]
+final class MissionController extends AbstractController
+{
+    public const PAR_PAGE = 10;
+
+    #[Route('', name: 'app_mission_index', methods: ['GET'])]
+    public function index(MissionRepository $missions, #[MapQueryParameter] int $page = 1, #[MapQueryParameter] ?MissionStatut $statut = null): Response
+    {
+        $page = max(1, $page);
+        $paginator = $missions->paginer($page, self::PAR_PAGE, $statut);
+
+        return $this->render('mission/index.html.twig', [
+            'missions' => iterator_to_array($paginator),
+            'page' => $page,
+            'pages' => max(1, (int) ceil(\count($paginator) / self::PAR_PAGE)),
+            'statut' => $statut,
+            'compteurs' => $missions->compterParStatut(),
+        ]);
+    }
+
+    #[Route('/{id}', name: 'app_mission_show', requirements: ['id' => '\d+'], methods: ['GET'])]
+    public function show(Mission $mission, MissionSuccessCalculator $calculator, RequeteCitoyenneRepository $requetes): Response
+    {
+        return $this->render('mission/show.html.twig', [
+            'mission' => $mission,
+            'pronostic' => $calculator->calculer($mission, $mission->getHerosAffectes()),
+            'requete' => $requetes->findOneBy(['mission' => $mission]),
+            'objectifForm' => $this->isGranted('ROLE_ADMIN') ? $this->createForm(ObjectifMissionType::class, new ObjectifMission(), [
+                'action' => $this->generateUrl('app_mission_objectif_add', ['id' => $mission->getId()]),
+            ]) : null,
+        ]);
+    }
+
+    #[Route('/nouvelle', name: 'app_mission_new', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function new(Request $request, MissionLifecycleService $cycle): Response
+    {
+        $mission = (new Mission())->setDifficulte(Difficulte::C)->setNiveauUrgence(NiveauUrgence::MOYENNE)
+            ->setTauxDeReussite(0)->setDateFinPrevue(new \DateTimeImmutable('+2 hours'));
+        $form = $this->createForm(MissionType::class, $mission);
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $cycle->creer($mission);
+            $this->addFlash('success', 'Mission créée (brouillon).');
+
+            return $this->redirectToRoute('app_mission_show', ['id' => $mission->getId()], Response::HTTP_SEE_OTHER);
+        }
+
+        return $this->render('mission/form.html.twig', ['form' => $form, 'mission' => $mission, 'titre' => 'Nouvelle mission']);
+    }
+
+    #[Route('/{id}/modifier', name: 'app_mission_edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function edit(Mission $mission, Request $request, EntityManagerInterface $em, MissionSuccessCalculator $calculator): Response
+    {
+        $form = $this->createForm(MissionType::class, $mission);
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            if ([] !== $mission->getHerosAffectes()) {
+                $mission->setTauxDeReussite($calculator->taux($mission, $mission->getHerosAffectes()));
+            }
+            $em->flush();
+            $this->addFlash('success', 'Mission mise à jour.');
+
+            return $this->redirectToRoute('app_mission_show', ['id' => $mission->getId()], Response::HTTP_SEE_OTHER);
+        }
+
+        return $this->render('mission/form.html.twig', ['form' => $form, 'mission' => $mission, 'titre' => 'Modifier la mission']);
+    }
+
+    #[Route('/{id}/objectifs', name: 'app_mission_objectif_add', requirements: ['id' => '\d+'], methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function ajouterObjectif(Mission $mission, Request $request, EntityManagerInterface $em): Response
+    {
+        $objectif = (new ObjectifMission())->setOrdreAffichage($mission->getObjectifs()->count() + 1);
+        $form = $this->createForm(ObjectifMissionType::class, $objectif);
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $mission->addObjectif($objectif);
+            $em->persist($objectif);
+            $em->flush();
+            $this->addFlash('success', 'Objectif ajouté.');
+        } else {
+            foreach ($form->getErrors(true) as $erreur) {
+                $this->addFlash('danger', $erreur->getMessage());
+            }
+        }
+
+        return $this->redirectToRoute('app_mission_show', ['id' => $mission->getId()], Response::HTTP_SEE_OTHER);
+    }
+
+    #[Route('/{id}/objectifs/{objectif}/progression', name: 'app_mission_objectif_progress', requirements: ['id' => '\d+', 'objectif' => '\d+'], methods: ['POST'])]
+    #[IsGranted('ROLE_OPERATOR')]
+    public function progressionObjectif(Mission $mission, ObjectifMission $objectif, Request $request, EntityManagerInterface $em): Response
+    {
+        $this->verifierObjectif($mission, $objectif, $request, 'objectif'.$objectif->getId());
+        $objectif->setProgression($request->getPayload()->getInt('progression'));
+        if ($request->getPayload()->getBoolean('termine')) {
+            $objectif->setTermine(true);
+        }
+        $em->flush();
+
+        return $this->redirectToRoute('app_mission_show', ['id' => $mission->getId()], Response::HTTP_SEE_OTHER);
+    }
+
+    #[Route('/{id}/objectifs/{objectif}/supprimer', name: 'app_mission_objectif_delete', requirements: ['id' => '\d+', 'objectif' => '\d+'], methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function supprimerObjectif(Mission $mission, ObjectifMission $objectif, Request $request, EntityManagerInterface $em): Response
+    {
+        $this->verifierObjectif($mission, $objectif, $request, 'supprimer-objectif'.$objectif->getId());
+        $mission->removeObjectif($objectif);
+        $em->remove($objectif);
+        $em->flush();
+        $this->addFlash('success', 'Objectif supprimé.');
+
+        return $this->redirectToRoute('app_mission_show', ['id' => $mission->getId()], Response::HTTP_SEE_OTHER);
+    }
+
+    #[Route('/{id}/{action}', name: 'app_mission_transition', requirements: ['id' => '\d+', 'action' => 'publier|lancer|cloturer|annuler'], methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function transition(Mission $mission, string $action, Request $request, MissionLifecycleService $cycle): Response
+    {
+        if (!$this->isCsrfTokenValid($action.$mission->getId(), $request->getPayload()->getString('_token'))) {
+            throw $this->createAccessDeniedException('Jeton CSRF invalide.');
+        }
+        try {
+            match ($action) {
+                'publier' => $cycle->publier($mission),
+                'lancer' => $cycle->lancer($mission),
+                'cloturer' => $cycle->cloturer($mission, 'succes' === $request->getPayload()->getString('resultat')),
+                'annuler' => $cycle->annuler($mission),
+            };
+            $this->addFlash('success', sprintf('Mission « %s » : %s.', $mission->getNom(), mb_strtolower($mission->getStatut()->label())));
+        } catch (MissionWorkflowException $e) {
+            $this->addFlash('danger', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_mission_show', ['id' => $mission->getId()], Response::HTTP_SEE_OTHER);
+    }
+
+    private function verifierObjectif(Mission $mission, ObjectifMission $objectif, Request $request, string $jeton): void
+    {
+        if ($objectif->getMission() !== $mission) {
+            throw $this->createNotFoundException();
+        }
+        if (!$this->isCsrfTokenValid($jeton, $request->getPayload()->getString('_token'))) {
+            throw $this->createAccessDeniedException('Jeton CSRF invalide.');
+        }
+    }
+}

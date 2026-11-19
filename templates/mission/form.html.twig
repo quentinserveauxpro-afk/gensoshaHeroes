@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ titre }}{% endblock %}
+{% block content %}
+    <h1 class="headline-lg">{{ titre }}</h1>
+    {{ form_start(form, {attr: {class: 'stack', novalidate: 'novalidate'}}) }}
+        <section class="card stack" aria-labelledby="g"><h2 id="g" class="headline-sm">Général</h2>
+            <div class="form-grid">
+                <div class="span-all">{{ form_row(form.nom) }}</div>
+                <div class="span-all">{{ form_row(form.description) }}</div>
+                {{ form_row(form.difficulte) }}{{ form_row(form.niveauUrgence) }}{{ form_row(form.dateDebut) }}{{ form_row(form.dateFinPrevue) }}
+                {{ form_row(form.cible) }}{{ form_row(form.etatCible) }}
+            </div>
+        </section>
+        <section class="card stack" aria-labelledby="l"><h2 id="l" class="headline-sm">Localisation</h2>
+            <div class="form-grid">{{ form_row(form.localisation) }}{{ form_row(form.positionX) }}{{ form_row(form.positionY) }}</div>
+        </section>
+        <section class="card stack" aria-labelledby="e"><h2 id="e" class="headline-sm">Équipe & exigences</h2>
+            <div class="form-grid">
+                {{ form_row(form.tailleEquipeMinimale) }}{{ form_row(form.tailleEquipeMaximale) }}{{ form_row(form.seuilSanteMinimal) }}
+                {{ form_row(form.combatRequis) }}{{ form_row(form.intelligenceRequis) }}{{ form_row(form.charismeRequis) }}{{ form_row(form.mobiliteRequis) }}{{ form_row(form.vigueurRequis) }}
+                {{ form_row(form.aptitudesRequises) }}{{ form_row(form.villains) }}
+            </div>
+        </section>
+        <div class="row">
+            <button type="submit" class="btn btn--primary">Enregistrer</button>
+            <a class="btn btn--soft" href="{{ mission.id ? path('app_mission_show', {id: mission.id}) : path('app_mission_index') }}">Annuler</a>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}
