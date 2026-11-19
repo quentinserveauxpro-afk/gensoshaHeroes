@@ -1,0 +1,103 @@
+{% extends 'base.html.twig' %}
+{% block title %}Requêtes Citoyennes{% endblock %}
+{% block content %}
+    <section class="card card--tinted stack-sm" aria-labelledby="req-titre">
+        <div class="row">
+            <span class="kpi__icon" style="width:48px;height:48px">{{ include('components/_icon.html.twig', {name: 'sensors'}) }}</span>
+            <div>
+                <span class="label-sm">Guichet central • Flux citoyen direct</span>
+                <h1 id="req-titre" class="headline-md">Traitement des Alertes & Requêtes Civiles</h1>
+            </div>
+        </div>
+        <div class="row">{{ include('components/_badge.html.twig', {label: 'Ligne 112-META : enregistrement continu', tone: 'muted', dot: true}) }}</div>
+    </section>
+
+    <div class="grid grid-4">
+        <div class="card kpi"><span class="label-sm">Appels citoyens reçus (24 h)</span><span class="kpi__value">{{ recues24h }}</span><span class="label-md muted">{{ total }} requêtes au total</span></div>
+        <div class="card kpi"><span class="label-sm">Urgences majeures non traitées</span><span class="kpi__value text-danger">{{ urgentesNonTraitees }}</span>{% if urgentesNonTraitees > 0 %}<span class="label-md text-danger">● Allocation immédiate requise</span>{% endif %}</div>
+        <div class="card kpi"><span class="label-sm">Converties en mission</span><span class="kpi__value">{{ requetes|filter(r => r.mission)|length }}</span><span class="label-md muted">lien requête → mission conservé</span></div>
+        <div class="card kpi"><span class="label-sm">Catégorie dominante</span><span class="kpi__value" style="font-size:20px">{% set top = parCategorie|sort|reverse|keys|first %}{{ top ? enum('App\\Enum\\RequeteCategorie').from(top).label : '—' }}</span></div>
+    </div>
+
+    <div class="req-layout">
+        <div class="stack">
+            <div class="card stack-sm">
+                <nav class="chip-group" aria-label="Filtrer par catégorie">
+                    <a href="{{ path('app_requete_index') }}" {% if not filtres.categorie and not filtres.urgentes %}aria-current="true"{% endif %}>Toutes les requêtes ({{ total }})</a>
+                    <a href="{{ path('app_requete_index', {urgentes: 1}) }}" {% if filtres.urgentes %}aria-current="true"{% endif %}><span class="text-danger">●</span> Urgences ({{ urgentesNonTraitees }} ouvertes)</a>
+                    {% for c in enum_cases('App\\Enum\\RequeteCategorie') %}
+                        <a href="{{ path('app_requete_index', {categorie: c.value}) }}" {% if filtres.categorie == c %}aria-current="true"{% endif %}>{{ c.label }} ({{ parCategorie[c.value] ?? 0 }})</a>
+                    {% endfor %}
+                </nav>
+                <form method="get" class="row" style="justify-content:flex-end">
+                    {% if filtres.categorie %}<input type="hidden" name="categorie" value="{{ filtres.categorie.value }}">{% endif %}
+                    <label for="tri" class="label-md">Tri</label>
+                    <select id="tri" name="tri" style="width:auto">
+                        <option value="urgence" {% if filtres.tri == 'urgence' %}selected{% endif %}>Urgence décroissante</option>
+                        <option value="date" {% if filtres.tri == 'date' %}selected{% endif %}>Plus récentes</option>
+                    </select>
+                    <button type="submit" class="btn btn--soft btn--sm">Trier</button>
+                </form>
+            </div>
+
+            {% for r in requetes %}
+                <article id="requete-{{ r.id }}" class="card req-card req-card--{{ r.niveauUrgence.value }} stack-sm" aria-labelledby="r-{{ r.id }}">
+                    <div class="row">
+                        {{ include('components/_badge.html.twig', {label: r.categorie.label ~ (r.niveauUrgence.value == 'CRITIQUE' ? ' absolue' : ''), tone: r.niveauUrgence.tone}) }}
+                        {{ include('components/_badge.html.twig', {label: 'Ticket #' ~ r.reference, tone: 'muted'}) }}
+                        <span class="label-md muted">{{ include('components/_icon.html.twig', {name: 'schedule'}) }} Déclaré le {{ r.dateCreation|date('d/m H:i') }}</span>
+                    </div>
+                    <span class="label-md">{{ include('components/_badge.html.twig', {label: 'Source : ' ~ r.origine.label ~ ' — ' ~ r.nomDemandeur, tone: 'ok'}) }}</span>
+                    <h2 id="r-{{ r.id }}" class="headline-sm">{{ r.titre }}</h2>
+                    <p class="row label-md" style="margin:0">{{ include('components/_icon.html.twig', {name: 'location_on'}) }} {{ r.adresse }} • <span class="{{ r.niveauUrgence.urgent ? 'text-danger' }}">Urgence {{ r.niveauUrgence.label|lower }}</span></p>
+                    <div class="req-card__body"><p style="margin:0">{{ r.description }}</p></div>
+                    <div class="row">
+                        {{ include('components/_badge.html.twig', {label: 'Statut : ' ~ r.statut.label, tone: 'muted'}) }}
+                        {% if r.mission %}
+                            <a class="btn btn--soft btn--sm" href="{{ path('app_mission_show', {id: r.mission.id}) }}">{{ include('components/_icon.html.twig', {name: 'link'}) }} Mission : {{ r.mission.nom|tronquer(40) }}</a>
+                        {% endif %}
+                    </div>
+                    {% if r.statut.ouverte %}
+                        <div class="row">
+                            {% if is_granted('ROLE_ADMIN') %}
+                                <form method="post" action="{{ path('app_requete_convert', {id: r.id}) }}" class="inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('convertir' ~ r.id) }}">
+                                    <button type="submit" class="btn btn--dark">{{ include('components/_icon.html.twig', {name: 'assignment_turned_in'}) }} Convertir en mission officielle</button>
+                                </form>
+                            {% endif %}
+                            <form method="post" action="{{ path('app_requete_close', {id: r.id}) }}" class="inline">
+                                <input type="hidden" name="_token" value="{{ csrf_token('classer' ~ r.id) }}">
+                                <button type="submit" class="btn btn--soft">{{ include('components/_icon.html.twig', {name: 'archive'}) }} Classer sans suite</button>
+                            </form>
+                        </div>
+                    {% endif %}
+                </article>
+            {% else %}
+                <p class="card muted">Aucune requête.</p>
+            {% endfor %}
+        </div>
+
+        <aside id="saisie" class="card stack sticky" aria-labelledby="saisie-titre">
+            <div class="row row--between">
+                <h2 id="saisie-titre" class="headline-md card__title">{{ include('components/_icon.html.twig', {name: 'bolt'}) }} Saisie Opérateur</h2>
+                {{ include('components/_badge.html.twig', {label: 'Live', tone: 'ok'}) }}
+            </div>
+            <p class="label-md muted" style="margin:0">Prise d'alerte en temps réel. Une urgence haute ou critique génère une alerte persistée.</p>
+            {{ form_start(form, {attr: {class: 'stack', novalidate: 'novalidate'}}) }}
+                {{ form_row(form.origine) }}
+                {{ form_row(form.titre) }}
+                {{ form_row(form.description) }}
+                {{ form_row(form.categorie) }}
+                {{ form_row(form.adresse) }}
+                <div class="mini-map" aria-hidden="true">
+                    <span class="mini-map__pin" style="left: {{ form.positionX.vars.value ?: 50 }}%; top: {{ form.positionY.vars.value ?: 50 }}%">{{ include('components/_icon.html.twig', {name: 'location_on'}) }}</span>
+                </div>
+                <div class="grid grid-2" style="gap:.5rem">{{ form_row(form.positionX) }}{{ form_row(form.positionY) }}</div>
+                {{ form_row(form.niveauUrgence) }}
+                {{ form_row(form.nomDemandeur) }}
+                <button type="submit" class="btn btn--dark btn--block">{{ include('components/_icon.html.twig', {name: 'campaign'}) }} Publier l'alerte réseau</button>
+                <button type="reset" class="btn-link" style="align-self:center">Réinitialiser les coordonnées</button>
+            {{ form_end(form) }}
+        </aside>
+    </div>
+{% endblock %}
