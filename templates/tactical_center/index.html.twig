@@ -1,0 +1,101 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Centre Tactique{% endblock %}
+
+{% block content %}
+    {% if alerte %}{{ include('components/_urgent_banner.html.twig') }}{% endif %}
+
+    <div class="page-head">
+        <h1 class="display">Centre Tactique</h1>
+        {{ include('components/_badge.html.twig', {label: 'Grid Genosha-V', tone: 'ok'}) }}
+        <span class="label-md row" style="gap:.4rem"><span class="badge__dot" style="color:var(--primary-container)" aria-hidden="true"></span> Flux satellite : carte abstraite {{ carte.largeur }}×{{ carte.hauteur }} km</span>
+    </div>
+
+    <div class="tc-grid">
+        <div class="tc-list">
+            <section class="card" aria-labelledby="missions-titre">
+                <div class="card__header">
+                    <h2 id="missions-titre" class="headline-md card__title">{{ include('components/_icon.html.twig', {name: 'sensors'}) }} Missions en Direct</h2>
+                    {{ include('components/_badge.html.twig', {label: nbActives ~ ' actives', tone: 'ok'}) }}
+                </div>
+                {% set q = app.request.query.all %}
+                <nav class="chip-group" aria-label="Filtrer par statut">
+                    <a href="{{ path('app_tactical_center', q|filter((v, k) => k != 'statut')) }}" {% if filtres.statut is null %}aria-current="true"{% endif %}>Actives ({{ nbActives }})</a>
+                    {% for s in ['EN_COURS', 'EN_ATTENTE', 'BROUILLON', 'TERMINEE'] %}
+                        {% set st = enum('App\\Enum\\MissionStatut').from(s) %}
+                        <a href="{{ path('app_tactical_center', q|merge({statut: s})) }}" {% if filtres.statut == st %}aria-current="true"{% endif %}>{{ st.label }} ({{ compteurs[s] ?? 0 }})</a>
+                    {% endfor %}
+                </nav>
+                <form method="get" class="row" style="margin-top:.75rem" aria-label="Filtres avancés">
+                    {% if filtres.statut %}<input type="hidden" name="statut" value="{{ filtres.statut.value }}">{% endif %}
+                    <div class="field" style="flex:1">
+                        <label for="f-difficulte" class="label-sm">Difficulté</label>
+                        <select id="f-difficulte" name="difficulte">
+                            <option value="">Toutes</option>
+                            {% for d in enum_cases('App\\Enum\\Difficulte') %}
+                                <option value="{{ d.value }}" {% if filtres.difficulte == d %}selected{% endif %}>{{ d.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field" style="flex:1">
+                        <label for="f-urgence" class="label-sm">Urgence</label>
+                        <select id="f-urgence" name="urgence">
+                            <option value="">Toutes</option>
+                            {% for u in enum_cases('App\\Enum\\NiveauUrgence') %}
+                                <option value="{{ u.value }}" {% if filtres.urgence == u %}selected{% endif %}>{{ u.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn--soft btn--sm" style="align-self:flex-end">Filtrer</button>
+                </form>
+            </section>
+
+            {% for mission in missions %}
+                {{ include('components/_mission_card.html.twig', {
+                    mission: mission,
+                    selected: selection and selection.id == mission.id,
+                    url: path('app_tactical_center', app.request.query.all|merge({mission: mission.id})),
+                }) }}
+            {% else %}
+                <p class="card muted">Aucune mission ne correspond aux filtres.</p>
+            {% endfor %}
+
+            <section class="card card--tinted" aria-labelledby="protection-titre">
+                <div class="row row--between">
+                    <h2 id="protection-titre" class="label-sm">Statut global de protection</h2>
+                    <strong class="headline-sm">{{ protection }}%</strong>
+                </div>
+                {{ include('components/_gauge.html.twig', {value: protection, thin: true, label: null}) }}
+                <div class="row row--between label-md" style="margin-top:.5rem">
+                    <span>● {{ herosDeployes }} héros déployés</span>
+                    <span class="muted">● {{ herosReserve }} en réserve tactique</span>
+                </div>
+            </section>
+        </div>
+
+        {% set hud %}
+            {% if selection %}
+                {{ include('tactical_center/_hud.html.twig', {mission: selection}) }}
+            {% endif %}
+        {% endset %}
+        {{ include('components/_tactical_map.html.twig', {carte: carte, selection: selection, hud: hud}) }}
+    </div>
+
+    {% if selection and selection.herosAffectes is not empty %}
+        <section class="card squad-banner" aria-label="Escouade engagée">
+            <span class="kpi__icon" style="width:48px;height:48px">{{ include('components/_icon.html.twig', {name: 'shield'}) }}</span>
+            <div style="flex:1;min-width:14rem">
+                <strong>Escouade d'intervention — {{ selection.nom }}</strong><br>
+                <span class="muted">{{ selection.herosAffectes|length }} héros engagés • Taux de réussite estimé {{ selection.tauxDeReussite }} %</span>
+            </div>
+            <div class="chip-group">
+                {% for hero in selection.herosAffectes %}
+                    {{ include('components/_badge.html.twig', {
+                        label: hero.nom ~ ' : santé ' ~ hero.santePourcentage ~ '% • ' ~ distance_km(hero, selection) ~ ' km',
+                        tone: jauge_tone(hero.santePourcentage), dot: true,
+                    }) }}
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}
