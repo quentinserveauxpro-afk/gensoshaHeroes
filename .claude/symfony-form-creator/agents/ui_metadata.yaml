@@ -1,0 +1,4 @@
+interface:
+  display_name: "Symfony Form Creator"
+  short_description: "Crée des FormType, vues Twig, contrôleurs et tests Symfony."
+  brand_color: "#000000"
