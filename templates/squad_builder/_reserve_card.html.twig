@@ -1,0 +1,27 @@
+{# Carte de héros en réserve. Paramètres : r (HeroRecommendation), top (bool), complet (bool), base, ids, mission #}
+{% set hero = r.hero %}
+<article class="card reserve-card{% if not r.eligible %} reserve-card--ineligible{% endif %}">
+    <div class="slot__head">
+        {{ include('components/_hero_avatar.html.twig', {hero: hero, size: 48, status: true, square: true}) }}
+        <div style="min-width:0">
+            <strong class="headline-sm">{{ hero.nom }}</strong> {% if top %}{{ include('components/_badge.html.twig', {label: 'Top', tone: 'warn'}) }}{% endif %}<br>
+            <span class="muted label-md">{{ hero.specialite|tronquer(28) }}</span>
+        </div>
+    </div>
+    <dl class="metrics">
+        <dt>Santé</dt><dt>Distance</dt>
+        <dd class="{{ hero.santePourcentage < 50 ? 'text-warn' }}">{{ hero.santePourcentage }}%</dd><dd>{{ r.distance }} km</dd>
+    </dl>
+    {% if hero.fatigue >= 50 %}
+        {{ include('components/_gauge.html.twig', {value: hero.fatigue, label: 'Fatigue ' ~ (hero.fatigue >= 70 ? 'élevée' : 'modérée'), tone: 'warn', thin: true}) }}
+    {% endif %}
+    {{ include('components/_gauge.html.twig', {value: r.score, label: 'Affinité mission', thin: true, tone: 'ok'}) }}
+    <span class="label-md">{{ include('components/_badge.html.twig', {label: r.eligible ? 'Disponible' : r.motifIneligibilite, tone: r.eligible ? 'ok' : 'danger', dot: true}) }}</span>
+    {% if r.eligible and not complet %}
+        <a class="btn btn--primary btn--block" href="{{ path('app_squad_builder_mission', base|merge({id: mission.id, equipe: (ids|merge([hero.id]))|join(',')})) }}">
+            {{ include('components/_icon.html.twig', {name: 'add_circle'}) }} Assigner à l'escouade
+        </a>
+    {% else %}
+        <button type="button" class="btn btn--soft btn--block" disabled>{{ complet ? 'Escouade complète' : 'Non assignable' }}</button>
+    {% endif %}
+</article>

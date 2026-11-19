@@ -1,0 +1,34 @@
+{# Emplacement d'escouade rempli. Paramètres : membre {hero, distance, evaluation}, index, base (params), ids, mission #}
+{% set hero = membre.hero %}
+{% set sans = ids|filter(i => i != hero.id)|join(',') %}
+<article class="card slot" aria-label="Emplacement {{ index }} : {{ hero.nom }}">
+    <div class="slot__head">
+        {{ include('components/_hero_avatar.html.twig', {hero: hero, size: 56, status: true, square: true}) }}
+        <div style="flex:1">
+            <span class="slot__name">{{ hero.nom }}</span>
+            {% if index == 1 %}{{ include('components/_badge.html.twig', {label: 'Lead', tone: 'solid'}) }}{% endif %}<br>
+            <span class="muted">{{ hero.role.label }} • {{ hero.specialite }}</span>
+        </div>
+    </div>
+    <div class="panel stack-sm">
+        {{ include('components/_gauge.html.twig', {value: hero.pointsDeVie, max: hero.pointsDeVieMaximum, label: 'Jauge de vie', display: hero.santePourcentage ~ '%'}) }}
+        <div class="row row--between label-md">
+            <span>{{ include('components/_icon.html.twig', {name: 'near_me'}) }} {{ membre.distance }} km du secteur</span>
+            {% set synergie = membre.evaluation.raisons|filter(r => r starts with 'Synergie')|first %}
+            {{ include('components/_badge.html.twig', {label: synergie ?: 'Affinité ' ~ membre.evaluation.score ~ '%', tone: 'ok'}) }}
+        </div>
+    </div>
+    <div class="row row--between label-md">
+        <span>
+            {% if membre.evaluation.eligible %}
+                {{ include('components/_icon.html.twig', {name: 'verified'}) }} Prêt au déploiement
+            {% else %}
+                <span class="text-danger">{{ include('components/_icon.html.twig', {name: 'block'}) }} {{ membre.evaluation.motifIneligibilite }}</span>
+            {% endif %}
+        </span>
+        <span class="row" style="gap:.75rem">
+            <a class="btn-link" href="{{ path('app_squad_builder_mission', base|merge({id: mission.id, equipe: sans})) }}#reserve" aria-label="Remplacer {{ hero.nom }}">{{ include('components/_icon.html.twig', {name: 'swap_horiz'}) }} Changer</a>
+            <a class="btn-link text-danger" href="{{ path('app_squad_builder_mission', base|merge({id: mission.id, equipe: sans})) }}" aria-label="Retirer {{ hero.nom }} de l'escouade">{{ include('components/_icon.html.twig', {name: 'person_remove'}) }} Retirer</a>
+        </span>
+    </div>
+</article>

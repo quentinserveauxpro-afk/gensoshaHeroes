@@ -1,0 +1,194 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Squad Builder — {{ mission.nom }}{% endblock %}
+
+{% block content %}
+    {% set base = {equipe: ids|join(','), taille: taille, filtre: filtres.filtre, role: filtres.role ? filtres.role.value : null, niveau: filtres.niveau, sante: filtres.sante}|filter(v => v is not null and v != '') %}
+    {% set complet = ids|length >= mission.tailleEquipeMaximale %}
+    {% set p = pronostic %}
+
+    <div class="row row--between">
+        <div class="row">
+            {{ include('components/_badge.html.twig', {label: 'Canal tactique ' ~ mission.id, tone: 'ok', dot: true}) }}
+            <span class="label-sm">• Planification déploiement</span>
+        </div>
+        <div class="row">
+            {{ include('components/_badge.html.twig', {label: (mission.difficulte ? mission.difficulte.label : '') ~ ' — Urgence ' ~ mission.niveauUrgence.label, tone: 'danger'}) }}
+            <span class="badge badge--warn">Temps imparti : {{ include('components/_timer.html.twig', {mission: mission}) }}</span>
+        </div>
+    </div>
+
+    <section class="card sb-header" aria-labelledby="sb-titre">
+        <div class="stack-sm">
+            <div class="row">
+                {{ include('components/_badge.html.twig', {label: mission.statut.label, tone: 'solid'}) }}
+                <span class="label-sm text-danger">Priorité : {{ mission.niveauUrgence.label }}</span>
+            </div>
+            <h1 id="sb-titre" class="headline-lg">Mission : {{ mission.nom }}</h1>
+            <p class="muted" style="font-size:16px;line-height:24px;margin:0">{{ mission.description }}</p>
+            <div class="chip-group" aria-label="Exigences de la mission">
+                {% for stat, valeur in mission.statsRequises %}
+                    <span class="chip chip--req">{{ enum('App\\Enum\\Statistique').from(stat).label }} ≥ {{ valeur }}</span>
+                {% endfor %}
+                {% for aptitude in mission.aptitudesRequises %}
+                    <span class="chip chip--req">{{ include('components/_icon.html.twig', {name: 'shield'}) }} {{ aptitude.nom }} requise</span>
+                {% endfor %}
+                <span class="chip chip--req">{{ include('components/_icon.html.twig', {name: 'groups'}) }} Escouade : {{ mission.tailleEquipeMinimale }} à {{ mission.tailleEquipeMaximale }} héros</span>
+                <span class="chip chip--req">Santé min. {{ mission.seuilSanteMinimal }}%</span>
+            </div>
+        </div>
+        <div class="stack-sm">
+            <div class="target">
+                <div class="row row--between label-sm">
+                    <span class="text-danger">● Cible : {{ mission.cible ?? 'non identifiée' }}</span>
+                    <span>X {{ mission.positionX }} / Y {{ mission.positionY }}</span>
+                </div>
+                <div class="panel" style="background:rgba(255,255,255,.85)">
+                    <span class="label-md">{{ mission.localisation }}</span><br>
+                    {% if mission.etatCible %}<strong class="text-danger">{{ mission.etatCible }}</strong>{% endif %}
+                    {% for v in mission.villains %}<br><span class="label-md">Menace {{ v.nom }} : {{ v.niveauMenace }}/10</span>{% endfor %}
+                </div>
+            </div>
+            <form method="get" action="{{ path('app_squad_builder') }}" class="row">
+                <label for="sb-mission" class="sr-only">Changer de mission</label>
+                <select id="sb-mission" name="mission" style="flex:1">
+                    {% for m in missionsDisponibles %}
+                        <option value="{{ m.id }}" {% if m.id == mission.id %}selected{% endif %}>{{ m.nom|tronquer(40) }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn--soft btn--sm">Ouvrir</button>
+            </form>
+        </div>
+    </section>
+
+    <div class="sb-layout">
+        <section aria-labelledby="formation-titre" class="stack">
+            <div class="row row--between">
+                <h2 id="formation-titre" class="headline-md card__title">{{ include('components/_icon.html.twig', {name: 'view_kanban'}) }} Formation de l'Unité Opérationnelle</h2>
+                <form method="get" class="row" style="gap:.4rem">
+                    {% for k, v in base|filter((v, k) => k != 'taille') %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+                    <label for="sb-taille" class="label-md">Emplacements</label>
+                    <select id="sb-taille" name="taille" style="width:auto">
+                        {% for t in mission.tailleEquipeMinimale..mission.tailleEquipeMaximale %}
+                            <option value="{{ t }}" {% if t == taille %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn--soft btn--sm">Appliquer</button>
+                    <span class="label-md">Slots activés : {{ ids|length }} / {{ taille }}</span>
+                </form>
+            </div>
+            <div class="sb-slots">
+                {% for membre in membres %}
+                    {{ include('squad_builder/_slot.html.twig', {membre: membre, index: loop.index}) }}
+                {% endfor %}
+                {% if taille > membres|length %}
+                    {% for i in (membres|length + 1)..taille %}
+                        <article class="card slot slot--empty">
+                            <span class="kpi__icon" style="width:64px;height:64px;font-size:28px">{{ include('components/_icon.html.twig', {name: 'person_add'}) }}</span>
+                            <h3 class="headline-sm">Assigner un {{ i }}<sup>{{ i == 1 ? 'er' : 'e' }}</sup> spécialiste</h3>
+                            <p class="muted" style="margin:0">Sélectionnez un héros disponible dans la réserve ci-dessous.</p>
+                            {% if suggestion and loop.first %}
+                                <a class="chip" href="{{ path('app_squad_builder_mission', base|merge({id: mission.id, equipe: (ids|merge([suggestion.hero.id]))|join(',')})) }}">
+                                    {{ include('components/_icon.html.twig', {name: 'auto_awesome'}) }} Suggestion : {{ suggestion.hero.nom }} ({{ suggestion.score }}%)
+                                </a>
+                            {% else %}
+                                <a class="btn-link" href="#reserve">Voir la réserve</a>
+                            {% endif %}
+                        </article>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </section>
+
+        <aside class="stack" aria-labelledby="pronostic-titre">
+            <h2 id="pronostic-titre" class="headline-md card__title">{{ include('components/_icon.html.twig', {name: 'insights'}) }} Pronostic Tactique</h2>
+            <div class="card stack" aria-live="polite">
+                <div style="display:grid;place-items:center">
+                    {{ include('components/_ring.html.twig', {value: p.taux, size: 180, stroke: 16, sublabel: 'Succès estimé'}) }}
+                </div>
+                <div class="panel row">
+                    {{ include('components/_icon.html.twig', {name: 'workspace_premium'}) }}
+                    <span><strong>Synergie : {{ p.qualiteSynergie }}</strong>{% if p.bonusSynergieTotal > 0 %} (+{{ p.bonusSynergieTotal }} bonus){% endif %}
+                        {% for s in p.synergiesActives %}<br><span class="label-md">{{ s.nom }} : {{ s.statistique.label }} +{{ s.valeurBonus }}</span>{% endfor %}
+                    </span>
+                </div>
+                <div class="stat-bars">
+                    {% for stat, label in {COMBAT: 'Force brute & combat', MOBILITE: 'Vitesse de réaction & évasion', VIGUEUR: 'Résistance demandée', INTELLIGENCE: 'Analyse technique & hack'} %}
+                        {% set requis = mission.statsRequises[stat] ?? null %}
+                        {{ include('components/_gauge.html.twig', {
+                            value: p.puissance[stat], label: label ~ (requis ? ' (≥ ' ~ requis ~ ')' : ''),
+                            tone: requis and p.puissance[stat] < requis ? 'warn' : 'ok', thin: true,
+                        }) }}
+                    {% endfor %}
+                </div>
+                {% if p.aptitudesManquantes is not empty %}
+                    <div>
+                        <h3 class="label-sm">Compétences manquantes</h3>
+                        <ul class="warnings">{% for a in p.aptitudesManquantes %}<li class="text-warn">{{ include('components/_icon.html.twig', {name: 'help'}) }} {{ a.nom }}</li>{% endfor %}</ul>
+                    </div>
+                {% endif %}
+                {% if rapport.erreurs is not empty %}
+                    <div>
+                        <h3 class="label-sm text-danger">Avertissements bloquants</h3>
+                        <ul class="warnings">{% for e in rapport.erreurs %}<li class="text-danger">{{ include('components/_icon.html.twig', {name: 'block'}) }} {{ e }}</li>{% endfor %}</ul>
+                    </div>
+                {% endif %}
+                {% if rapport.avertissements is not empty %}
+                    <ul class="warnings">{% for a in rapport.avertissements %}<li class="text-warn">{{ include('components/_icon.html.twig', {name: 'warning'}) }} {{ a }}</li>{% endfor %}</ul>
+                {% endif %}
+                <p class="label-md muted row row--between" style="margin:0"><span>● Calcul serveur (MissionSuccessCalculator)</span></p>
+            </div>
+        </aside>
+    </div>
+
+    <section id="reserve" class="stack" aria-labelledby="reserve-titre" tabindex="-1">
+        <div class="row row--between">
+            <div>
+                <h2 id="reserve-titre" class="headline-md card__title">{{ include('components/_icon.html.twig', {name: 'person_search'}) }} Réserve Opérationnelle de Genosha</h2>
+                <p class="muted" style="margin:0">Classement par affinité (HeroRecommendationService). La décision finale reste à l'opérateur.</p>
+            </div>
+            <nav class="chip-group" aria-label="Filtres de la réserve">
+                {% for f, label in {tous: 'Tous', disponibles: 'Disponibles', base: 'En base', proximite: 'Proximité (< 5 km)'} %}
+                    <a href="{{ path('app_squad_builder_mission', base|merge({id: mission.id, filtre: f})) }}#reserve" {% if filtres.filtre == f %}aria-current="true"{% endif %}>{{ label }} ({{ compteurs[f] }})</a>
+                {% endfor %}
+            </nav>
+        </div>
+        <form method="get" action="{{ path('app_squad_builder_mission', {id: mission.id}) }}#reserve" class="card row" aria-label="Filtres détaillés">
+            {% for k, v in base|filter((v, k) => k in ['equipe', 'taille', 'filtre']) %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+            <div class="field"><label for="r-role">Rôle</label>
+                <select id="r-role" name="role"><option value="">Tous</option>
+                    {% for r in enum_cases('App\\Enum\\HeroRole') %}<option value="{{ r.value }}" {% if filtres.role == r %}selected{% endif %}>{{ r.label }}</option>{% endfor %}
+                </select></div>
+            <div class="field"><label for="r-niveau">Niveau minimal</label><input id="r-niveau" type="number" name="niveau" min="1" max="100" value="{{ filtres.niveau }}"></div>
+            <div class="field"><label for="r-sante">Santé minimale (%)</label><input id="r-sante" type="number" name="sante" min="0" max="100" value="{{ filtres.sante }}"></div>
+            <button type="submit" class="btn btn--soft" style="align-self:flex-end">Filtrer</button>
+        </form>
+        <div class="reserve">
+            {% for r in reserve %}
+                {{ include('squad_builder/_reserve_card.html.twig', {r: r, top: loop.first and r.eligible}) }}
+            {% else %}
+                <p class="muted">Aucun héros ne correspond à ces filtres.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="card deploy-bar" aria-label="Validation du déploiement">
+        <div class="row">
+            <span class="kpi__icon">{{ include('components/_icon.html.twig', {name: rapport.estValide ? 'verified_user' : 'gpp_maybe'}) }}</span>
+            <span>
+                <strong>{{ rapport.estValide ? 'Protocole de largage prêt' : 'Déploiement bloqué' }}</strong><br>
+                <span class="muted">Validation finale côté serveur, dans une transaction verrouillée.</span>
+            </span>
+        </div>
+        <div class="row">
+            <a class="btn btn--soft" href="{{ path('app_squad_builder_mission', {id: mission.id}) }}">{{ include('components/_icon.html.twig', {name: 'restart_alt'}) }} Réinitialiser</a>
+            <form method="post" action="{{ path('app_squad_builder_deploy', {id: mission.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('deployer' ~ mission.id) }}">
+                <input type="hidden" name="equipe" value="{{ ids|join(',') }}">
+                <button type="submit" class="btn btn--primary btn--lg" {% if not rapport.estValide %}aria-disabled="true"{% endif %}>
+                    {{ include('components/_icon.html.twig', {name: 'rocket_launch'}) }} Confirmer l'équipe et déployer
+                </button>
+            </form>
+        </div>
+    </section>
+{% endblock %}
