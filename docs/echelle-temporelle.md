@@ -67,18 +67,32 @@ durée     = clamp(round(base × vigueur × admission × soutien × capacité), 
 | 15 % de santé, fatigue 30 | ≈ 12 min 30 |
 | 0 PV, fatigue 100 | 15 min (plafond) |
 
-La durée est fixée à l'arrivée au QG (date de sortie prévue). La récupération est progressive :
+La durée est fixée à l'arrivée au QG et répartie entre la santé et la fatigue. Les cibles sont
+toujours **PV max et fatigue 0** : c'est la règle de sortie (voir [infirmerie.md](infirmerie.md)).
 
 ```
-p       = (maintenant − dernier calcul) / (sortie prévue − dernier calcul), borné à [0, 1]
-santé   = santé enregistrée   + p × (cible − santé enregistrée)
-fatigue = fatigue enregistrée − p × (fatigue enregistrée − cible)
+poids santé   = (100 − santé %) / 100 × 0,60 × admission     (0 si la santé est déjà maximale)
+poids fatigue = fatigue / 100 × 0,40                         (0 si la fatigue est déjà nulle)
+durée santé   = durée × poids santé   / max(poids santé, poids fatigue)
+durée fatigue = durée × poids fatigue / max(poids santé, poids fatigue)
+sortie prévue = arrivée + la plus longue des deux (= durée)
 ```
 
-Pour un séjour neuf, c'est exactement `santéAdmission + (écoulé / durée) × (cible − santéAdmission)`.
-Interpoler depuis le dernier point enregistré rend aussi le calcul exact après une interruption
-ou une normalisation. La santé ne baisse jamais, la fatigue n'augmente jamais, les PV restent
-dans [0, max] et la fatigue dans [0, 100]. À la date prévue, les cibles sont appliquées exactement.
+Chaque composante progresse linéairement à son rythme, enregistré dans les colonnes `taux_*`
+existantes, et s'arrête à sa cible :
+
+```
+santé   = min(PV max, santé enregistrée   + rythme santé   × (maintenant − dernier calcul))
+fatigue = max(0,      fatigue enregistrée − rythme fatigue × (maintenant − dernier calcul))
+```
+
+- Si la santé est au maximum avant la fatigue, la santé s'arrête et la fatigue continue de
+  baisser. Si la fatigue est nulle avant la santé, c'est l'inverse.
+- Exemple : santé restante 2 min et fatigue restante 8 min donnent 8 min avant la sortie.
+- Le rythme effectif n'est jamais inférieur à celui qui atteint la cible à la sortie prévue.
+- La santé ne baisse jamais et la fatigue n'augmente jamais ; les PV restent dans [0, max] et la
+  fatigue dans [0, 100].
+- À la date prévue, les cibles sont appliquées exactement et le séjour passe « rétabli ».
 
 ## Source de vérité et mises à jour
 

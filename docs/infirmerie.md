@@ -13,7 +13,7 @@ et décrivent des personnages.
    déjà au QG / position inconnue ─────────────────────────────────────┤
                                                                        ▼
                                                                EN_TRAITEMENT
-                                                                       │ santé ≥ cible et fatigue ≤ cible
+                                                                       │ PV == PV max ET fatigue == 0
                                                                        ▼
                                                                    RETABLI
                                     sortie automatique (config) ou │ validation opérateur héros
@@ -54,8 +54,6 @@ Conséquences d'une admission (`HeroRepatriationService::admettre()`) :
 |---|---|---|
 | `INFIRMERIE_SANTE_CRITIQUE` | 20 | santé (%) ≤ seuil → rapatriement |
 | `INFIRMERIE_FATIGUE_CRITIQUE` | 90 | fatigue ≥ seuil → rapatriement |
-| `INFIRMERIE_SANTE_SORTIE` | 100 | santé (%) à atteindre |
-| `INFIRMERIE_FATIGUE_SORTIE` | 20 | fatigue maximale de sortie |
 | `INFIRMERIE_APTITUDE_SOUTIEN` | `SUPPORT_MEDICAL` | code d'aptitude du soutien (jamais un nom de héros) |
 | `INFIRMERIE_CAPACITE` | 6 | lits ; au-delà, soin plus long |
 | `INFIRMERIE_SORTIE_AUTOMATIQUE` | 0 | 1 : sortie automatique ; 0 : validation par un opérateur héros |
@@ -107,10 +105,41 @@ d'actualiser (pas de rechargement automatique).
 `ROLE_OPERATOR` (historique) hérite de `ROLE_HERO_OPERATOR`. Droits vérifiés par `InfirmerieVoter`
 dans le contrôleur ; actions en POST avec jeton CSRF.
 
+## Règle de sortie
+
+Un héros est totalement rétabli, et peut quitter l'infirmerie, **uniquement si ses points de vie
+sont au maximum ET sa fatigue est à 0**. Les deux conditions sont obligatoires et la règle n'est pas
+configurable (les anciennes variables `INFIRMERIE_SANTE_SORTIE` et `INFIRMERIE_FATIGUE_SORTIE` ont
+été supprimées).
+
+| Santé | Fatigue | Résultat |
+|---|---|---|
+| 100 % | 15 | reste en infirmerie |
+| 100 % | 1 | reste en infirmerie |
+| 95 % | 0 | reste en infirmerie |
+| 100 % | 0 | rétabli, sortie autorisée |
+
+- **Récupération :** la santé et la fatigue récupèrent chacune à leur rythme. Celle qui atteint sa
+  cible la première s'arrête, l'autre continue. Le séjour passe « rétabli » quand les deux sont
+  atteintes, et le temps restant affiché est celui de la plus longue
+  (voir [echelle-temporelle.md](echelle-temporelle.md)).
+- **Affichage :** la page indique les PV actuels et maximaux, la fatigue et la récupération
+  globale. Elle affiche « Santé rétablie, récupération de fatigue en cours » (santé maximale,
+  fatigue > 0), puis « Repos terminé » (santé maximale ET fatigue nulle), avec le temps restant
+  de chaque composante.
+- **Décision serveur :** `HeroRecoveryService::sortieAutorisee()`, `InfirmerieVoter` (bouton et
+  route) et `HeroRecoveryService::sortir()` vérifient la règle. Une requête forgée est refusée.
+  L'alerte « Récupération terminée » n'est émise qu'une fois, quand les deux conditions sont
+  réunies.
+- **Anciens séjours :** un séjour déclaré « rétabli » selon l'ancienne règle (fatigue ≤ 20) n'est
+  pas libéré. Sa récupération reprend jusqu'à une fatigue nulle, puis il suit le cycle normal.
+
 ## Squad Builder
 
 `DisponibiliteMedicale` rend un héros inéligible (motif affiché) s'il a un séjour actif
-(« Retour vers le QG », « Traitement médical », « Rétabli, sortie à valider ») ou si sa santé ou sa
+(« Retour vers le QG », « Traitement médical », « Santé rétablie, récupération de fatigue en
+cours », « Rétabli, sortie à valider »). Il le reste tant que sa santé n'est pas au maximum ou que
+sa fatigue n'est pas nulle, puis jusqu'à la validation de sa sortie. Il est aussi inéligible si sa santé ou sa
 fatigue est critique. Un héros en séjour présent dans l'URL est retiré de la composition (pas de
 synergie ni de pronostic). `DeploymentValidator` revalide au déploiement, même si le statut du
 héros a été remis à « disponible » à la main.
