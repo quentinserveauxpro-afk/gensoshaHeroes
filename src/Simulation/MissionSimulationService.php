@@ -11,7 +11,10 @@ use App\Entity\ObjectifMission;
 use App\Enum\AffectationStatut;
 use App\Enum\MissionStatut;
 use App\Enum\NiveauAlerte;
+use App\Enum\TypeAdmission;
 use App\Geo\EstimatedArrivalCalculator;
+use App\Infirmerie\HeroRepatriationService;
+use App\Infirmerie\InfirmerieConfiguration;
 use App\Movement\HeroMovementService;
 use App\Repository\MissionSimulationStateRepository;
 use App\Service\Mission\EffectiveStatsResolver;
@@ -67,6 +70,8 @@ final class MissionSimulationService
         private readonly MissionLifecycleService $cycle,
         private readonly EstimatedArrivalCalculator $temps,
         private readonly ClockInterface $clock,
+        private readonly ?HeroRepatriationService $rapatriement = null,
+        private readonly ?InfirmerieConfiguration $infirmerie = null,
     ) {
     }
 
@@ -196,7 +201,9 @@ final class MissionSimulationService
             $stats = $this->statsResolver->statsEffectives($hero, $t);
             $graine = sprintf('mission:%d:etape:%d:hero:%d', $mission->getId(), $numero, $hero->getId());
             $degats = $this->sante->degats($stats, $menace, $mission->getDifficulte(), $this->alea->valeur($graine));
+            $this->fatiguer($etat, $hero);
             if (0 === $degats) {
+                $this->evaluerMedicalement($mission, $etat, $hero, $t, $evenements);
                 continue;
             }
             $pv = $this->sante->appliquer($hero, $degats);
@@ -210,9 +217,36 @@ final class MissionSimulationService
                 $etat->journaliser($t, 'danger', sprintf('%s est hors de combat.', $hero->getNom()));
                 $evenements[] = 'ko:'.$hero->getId();
             }
+            $this->evaluerMedicalement($mission, $etat, $hero, $t, $evenements);
         }
 
         return [] === $gains ? 0.0 : array_sum($gains) / \count($gains);
+    }
+
+    /** Fatigue gagnée pendant une étape d'engagement (valeur décimale conservée dans l'état). */
+    private function fatiguer(MissionSimulationState $etat, Hero $hero): void
+    {
+        $gain = $this->infirmerie?->fatigueParEtape ?? 0.0;
+        if ($gain <= 0) {
+            return;
+        }
+        $valeur = $etat->getFatiguePrecise((int) $hero->getId(), $hero->getFatigue()) + $gain;
+        $etat->setFatiguePrecise((int) $hero->getId(), $valeur);
+        $hero->setFatigue((int) floor($valeur));
+    }
+
+    /**
+     * Après dégâts et progression : rapatriement si la santé ou la fatigue atteint le seuil
+     * critique (décision serveur). Le héros cesse aussitôt de contribuer aux objectifs.
+     *
+     * @param list<string> $evenements
+     */
+    private function evaluerMedicalement(Mission $mission, MissionSimulationState $etat, Hero $hero, \DateTimeImmutable $t, array &$evenements): void
+    {
+        $sejour = $this->rapatriement?->rapatrierSiNecessaire($hero, $t, TypeAdmission::AUTOMATIQUE);
+        if (null !== $sejour) {
+            $evenements[] = 'rapatrie:'.$hero->getId();
+        }
     }
 
     /** @param list<Hero> $vivants */
@@ -262,9 +296,14 @@ final class MissionSimulationService
             }
         }
 
+        $equipe = $mission->getHerosAffectes();
         $this->mouvements->interrompreMission($mission, $now);
         $this->alerter($mission, $now, $succes ? 'Mission réussie' : 'Mission échouée', sprintf('%s — %s', $mission->getNom(), $motif), $succes ? NiveauAlerte::INFO : NiveauAlerte::ALERTE, 'FIN', 0);
         $this->cycle->cloturer($mission, $succes);
+        // Fin de mission : les héros épuisés ou en état critique sont pris en charge.
+        foreach ($equipe as $hero) {
+            $this->rapatriement?->rapatrierSiNecessaire($hero, $now, TypeAdmission::POST_MISSION, $mission);
+        }
 
         return new RapportSimulation((int) $mission->getId(), $succes ? self::PHASE_TERMINEE : self::PHASE_ECHOUEE, $etapes, true, $succes, [$motif]);
     }

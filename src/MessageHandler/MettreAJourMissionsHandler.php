@@ -2,6 +2,7 @@
 
 namespace App\MessageHandler;
 
+use App\Infirmerie\InfirmaryUpdateRunner;
 use App\Message\MettreAJourMissions;
 use App\Simulation\MissionUpdateRunner;
 use Symfony\Component\Lock\LockFactory;
@@ -13,6 +14,7 @@ final class MettreAJourMissionsHandler
     public function __construct(
         private readonly MissionUpdateRunner $runner,
         private readonly LockFactory $verrous,
+        private readonly ?InfirmaryUpdateRunner $infirmerie = null,
     ) {
     }
 
@@ -24,6 +26,7 @@ final class MettreAJourMissionsHandler
         }
         try {
             $this->runner->executer();
+            $this->infirmerie?->executer();
         } finally {
             $verrou->release();
         }

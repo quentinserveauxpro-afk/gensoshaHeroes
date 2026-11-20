@@ -2,6 +2,7 @@
 
 namespace App\Geo;
 
+use App\Infirmerie\QgConfiguration;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
@@ -17,7 +18,7 @@ final readonly class CarteConfiguration
     public const CENTRE = ['lat' => 46.603354, 'lng' => 1.888334];
     public const ZOOM_INITIAL = 6;
 
-    /** QG Genosha (point de départ par défaut des héros sans position connue). */
+    /** Valeur de repli si QgConfiguration (QG_LATITUDE, QG_LONGITUDE, QG_NOM) n'est pas injectée. */
     public const QG = ['lat' => 48.8566, 'lng' => 2.3522, 'label' => 'QG Genosha — Paris'];
 
     /** Raccourcis d'affichage vers les départements et régions d'outre-mer. */
@@ -34,6 +35,7 @@ final readonly class CarteConfiguration
         public string $urlTuiles = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
         #[Autowire('%env(MAP_TILE_ATTRIBUTION)%')]
         public string $attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">Contributeurs OpenStreetMap</a>',
+        public ?QgConfiguration $qgConfiguration = null,
     ) {
     }
 
@@ -50,7 +52,7 @@ final readonly class CarteConfiguration
             'zoom' => self::ZOOM_INITIAL,
             'tuiles' => $this->urlTuiles,
             'attribution' => $this->attribution,
-            'qg' => self::QG,
+            'qg' => $this->qgConfiguration?->versTableau() ?? self::QG,
             'outreMer' => self::OUTRE_MER,
         ];
     }

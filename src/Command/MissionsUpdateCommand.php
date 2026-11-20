@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Infirmerie\InfirmaryUpdateRunner;
 use App\Simulation\MissionUpdateRunner;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -11,7 +12,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Lock\LockFactory;
 
 /**
- * Moteur temps réel : déplacements des héros et simulation des missions en cours.
+ * Moteur temps réel : déplacements des héros et simulation des missions en cours,
+ * puis passage de l'infirmerie (désactivable avec --sans-infirmerie).
  *
  *   php bin/console app:missions:update                 # un passage (cron, Messenger, CI)
  *   php bin/console app:missions:update --watch         # worker : un passage toutes les 3 s
@@ -30,6 +32,7 @@ final class MissionsUpdateCommand
         private readonly MissionUpdateRunner $runner,
         private readonly LockFactory $verrous,
         private readonly EntityManagerInterface $em,
+        private readonly ?InfirmaryUpdateRunner $infirmerie = null,
     ) {
     }
 
@@ -38,6 +41,7 @@ final class MissionsUpdateCommand
         #[Option(description: 'Boucle en continu (worker)')] bool $watch = false,
         #[Option(description: 'Secondes entre deux passages en mode --watch (2 à 60)')] int $intervalle = 3,
         #[Option(description: 'Nombre maximal de passages en mode --watch (0 = illimité)')] int $iterations = 0,
+        #[Option(description: 'Ne pas exécuter le passage de l\'infirmerie (app:infirmary:update)')] bool $sansInfirmerie = false,
     ): int {
         $intervalle = max(2, min(60, $intervalle));
         $verrou = $this->verrous->createLock('app-missions-update', 3 * MissionUpdateRunner::TTL_VERROU);
@@ -60,6 +64,13 @@ final class MissionsUpdateCommand
                 ++$n;
                 if ($io->isVerbose() || !$watch) {
                     $io->writeln(sprintf('[%s] %s', date('H:i:s'), $rapport->resume()));
+                }
+                if (!$sansInfirmerie && null !== $this->infirmerie) {
+                    $this->em->clear();
+                    $bilan = $this->infirmerie->executer();
+                    if ($io->isVerbose() || !$watch) {
+                        $io->writeln(sprintf('[%s] %s', date('H:i:s'), $bilan->resume()));
+                    }
                 }
                 $this->em->clear();
                 $verrou->refresh();

@@ -8,7 +8,7 @@ use App\Entity\HeroMovement;
 use App\Entity\Mission;
 use App\Enum\AffectationStatut;
 use App\Enum\SourceGeolocalisation;
-use App\Geo\CarteConfiguration;
+use App\Infirmerie\QgConfiguration;
 use App\Geo\Coordonnees;
 use App\Geo\DistanceCalculator;
 use App\Geo\EstimatedArrivalCalculator;
@@ -37,8 +37,12 @@ final class HeroMovementService
         private readonly DistanceCalculator $distances,
         private readonly EstimatedArrivalCalculator $eta,
         private readonly ClockInterface $clock,
+        ?QgConfiguration $qg = null,
     ) {
+        $this->qg = $qg ?? new QgConfiguration();
     }
+
+    private readonly QgConfiguration $qg;
 
     /**
      * Crée les déplacements manquants des héros « en route » d'une mission (idempotent).
@@ -79,7 +83,7 @@ final class HeroMovementService
         }
 
         $now = $this->clock->now();
-        $depart = $hero->getCoordonnees() ?? CarteConfiguration::qg();
+        $depart = $hero->getCoordonnees() ?? $this->qg->coordonnees();
         $distance = $this->distances->distanceKm($depart, $arrivee);
         $vitesse = $this->eta->vitessePourHero($hero);
 
@@ -204,6 +208,6 @@ final class HeroMovementService
 
     public function coordonneesDepart(\App\Entity\Hero $hero): Coordonnees
     {
-        return $hero->getCoordonnees() ?? CarteConfiguration::qg();
+        return $hero->getCoordonnees() ?? $this->qg->coordonnees();
     }
 }
