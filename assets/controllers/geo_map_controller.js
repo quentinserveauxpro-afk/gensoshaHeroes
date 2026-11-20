@@ -55,6 +55,9 @@ export default class extends Controller {
 
         this.surEtat = (e) => this.appliquer(e.detail);
         window.addEventListener('genosha:etat', this.surEtat);
+        // Rafraîchissement des fiches (mission-status) : même source serveur, marqueurs tenus à jour.
+        this.surMissions = (e) => this.majMissionsSuivies(e.detail?.missions ?? []);
+        window.addEventListener('genosha:missions-live', this.surMissions);
         if (this.etatValue && this.etatValue.heros) {
             this.appliquer(this.etatValue);
         }
@@ -62,6 +65,7 @@ export default class extends Controller {
 
     disconnect() {
         window.removeEventListener('genosha:etat', this.surEtat);
+        window.removeEventListener('genosha:missions-live', this.surMissions);
         this.carte?.remove();
     }
 
@@ -137,6 +141,26 @@ export default class extends Controller {
         const marqueur = L.marker([m.position.lat, m.position.lng], { riseOnHover: true, title: `Mission ${m.nom}` });
         marqueur.bindPopup(() => this.popupMission(marqueur.donnees), { maxWidth: 300 });
         return marqueur;
+    }
+
+    /** Déplace le marqueur et adapte son apparence (statut, urgence) d'après la fiche actualisée. */
+    majMissionsSuivies(missions) {
+        if (!this.marqueursMissions) return;
+        missions.forEach((m) => {
+            const marqueur = this.marqueursMissions.get(m.id);
+            if (!marqueur || !marqueur.donnees || m.closed) return; // mission close : retirée par l'instantané suivant
+            this.majMission(marqueur, {
+                ...marqueur.donnees,
+                position: m.position ?? marqueur.donnees.position,
+                urgence: m.urgency,
+                urgenceLabel: m.urgencyLabel,
+                critique: m.critical,
+                phase: m.phase,
+                statut: m.status,
+                taux: m.successRate,
+                progression: m.progress,
+            });
+        });
     }
 
     majMission(marqueur, m) {
