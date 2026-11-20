@@ -1,0 +1,45 @@
+{# Carte réelle Leaflet + OpenStreetMap, alimentée par l'instantané serveur (EtatTactiqueProvider).
+   Paramètres : etat (instantané initial), selection (Mission|null), hud (HTML optionnel) #}
+{% set config = carte_config() %}
+<section class="map-wrap map-wrap--geo" aria-labelledby="carte-titre"
+         data-controller="geo-map"
+         data-geo-map-config-value="{{ config|json_encode }}"
+         data-geo-map-etat-value="{{ etat|json_encode }}"
+         data-geo-map-selection-value="{{ selection ? selection.id : 0 }}">
+    <h2 id="carte-titre" class="sr-only">Carte de France des interventions</h2>
+    <div class="map-toolbar label-sm">
+        <span>Calques :</span>
+        <label><input type="checkbox" checked data-action="geo-map#basculer" data-geo-map-calque-param="missions"> Missions</label>
+        <label><input type="checkbox" checked data-action="geo-map#basculer" data-geo-map-calque-param="heros"> Héros</label>
+        <label><input type="checkbox" checked data-action="geo-map#basculer" data-geo-map-calque-param="vilains"> Vilains</label>
+        <label><input type="checkbox" checked data-action="geo-map#basculer" data-geo-map-calque-param="trajets"> Trajets</label>
+        <span class="map-toolbar__sep" aria-hidden="true"></span>
+        <button type="button" class="btn-link" data-action="geo-map#aller" data-geo-map-lat-param="{{ config.centre.lat }}" data-geo-map-lng-param="{{ config.centre.lng }}" data-geo-map-zoom-param="{{ config.zoom }}">Métropole</button>
+        {% for nom, p in config.outreMer %}
+            <button type="button" class="btn-link" data-action="geo-map#aller" data-geo-map-lat-param="{{ p.lat }}" data-geo-map-lng-param="{{ p.lng }}" data-geo-map-zoom-param="{{ p.zoom }}">{{ nom }}</button>
+        {% endfor %}
+        <button type="button" class="btn-link" data-action="geo-map#recadrer">Recadrer</button>
+    </div>
+    <div class="map-geo" data-geo-map-target="carte" role="application" aria-label="Carte interactive : positions des héros, des missions et des vilains"></div>
+    {% if hud is defined and hud %}<div class="map-hud">{{ hud|raw }}</div>{% endif %}
+    <div class="map-footer">
+        <span>● MISSIONS ACTIVES : <span data-geo-map-target="compteurMissions">{{ etat.missions|length }}</span></span>
+        <span>HÉROS SUR CARTE : <span data-geo-map-target="compteurHeros">{{ etat.heros|length }}</span></span>
+        <span>EN ROUTE : <span data-geo-map-target="compteurRoute">{{ etat.heros|filter(h => h.deplacement and h.deplacement.statut == 'EN_DEPLACEMENT')|length }}</span></span>
+        {{ include('components/_realtime.html.twig') }}
+    </div>
+    <p class="map-legend label-md muted">Trajets simulés en ligne droite (grand cercle) : ce ne sont pas des itinéraires routiers. Fond de carte © contributeurs OpenStreetMap.</p>
+    <details class="map-text">
+        <summary class="label-md">Version texte des héros engagés</summary>
+        <ul data-geo-map-target="liste">
+            {% for h in etat.heros|filter(h => h.missionId) %}
+                <li>{{ h.nom }} — {{ h.statutLabel }}, santé {{ h.sante }} %{% if h.deplacement %}, {{ h.deplacement.statutLabel|lower }}, {{ h.deplacement.distanceRestanteKm }} km restants{% endif %}</li>
+            {% else %}
+                <li>Aucun héros engagé.</li>
+            {% endfor %}
+        </ul>
+    </details>
+    <div class="sr-only" aria-live="polite" data-geo-map-target="annonce"></div>
+    <template data-geo-map-target="gabaritHero">{{ include('components/_hero_marker.html.twig') }}</template>
+    <template data-geo-map-target="gabaritMission">{{ include('components/_mission_marker.html.twig') }}</template>
+</section>

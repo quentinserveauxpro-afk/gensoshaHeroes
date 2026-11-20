@@ -1,0 +1,20 @@
+{# Contenu de l'infobulle d'un marqueur héros sur la carte (gabarit cloné côté client).
+   Les éléments [data-champ] sont remplis avec les données temps réel (textContent, jamais innerHTML). #}
+<div class="map-popup stack-sm">
+    <div class="row row--between">
+        <strong data-champ="nom"></strong>
+        <span class="badge" data-champ="statutLabel" data-tone-champ="tone"></span>
+    </div>
+    <span class="label-md muted" data-champ="role"></span>
+    <div class="gauge gauge--thin" data-jauge="sante">
+        <div class="gauge__head"><span>Santé</span><span data-champ="santeTexte"></span></div>
+        <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Santé"><div class="gauge__fill"></div></div>
+    </div>
+    <dl class="map-popup__facts">
+        <div><dt>Mission</dt><dd data-champ="missionNom">—</dd></div>
+        <div><dt>Déplacement</dt><dd data-champ="deplacementTexte">—</dd></div>
+        <div><dt>Distance restante</dt><dd data-champ="distanceTexte">—</dd></div>
+        <div><dt>Arrivée estimée</dt><dd data-champ="etaTexte">—</dd></div>
+    </dl>
+    <a class="btn btn--soft btn--sm" data-lien="url">Fiche du héros</a>
+</div>

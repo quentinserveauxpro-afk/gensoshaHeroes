@@ -1,0 +1,19 @@
+{# Contenu de l'infobulle d'un marqueur mission sur la carte (gabarit cloné côté client). #}
+<div class="map-popup stack-sm">
+    <div class="row row--between">
+        <strong data-champ="nom"></strong>
+        <span class="badge" data-champ="urgenceLabel"></span>
+    </div>
+    <span class="label-md muted" data-champ="localisation"></span>
+    <div class="row">
+        <span class="badge badge--muted" data-champ="phaseLabel"></span>
+        <span class="label-md" data-champ="tauxTexte"></span>
+    </div>
+    <div class="gauge gauge--thin gauge--warn" data-jauge="progression">
+        <div class="gauge__head"><span>Objectifs obligatoires</span><span data-champ="progressionTexte"></span></div>
+        <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Progression des objectifs"><div class="gauge__fill"></div></div>
+    </div>
+    <span class="label-md" data-champ="menaceTexte"></span>
+    <span class="label-md muted" data-champ="equipeTexte"></span>
+    <a class="btn btn--soft btn--sm" data-lien="url">Ouvrir la mission</a>
+</div>

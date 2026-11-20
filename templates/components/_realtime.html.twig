@@ -1,0 +1,9 @@
+{# Abonnement temps réel unique de la page (SSE, repli polling). Paramètre : inline (bool) #}
+<span class="realtime-status label-md" data-controller="realtime"
+      data-realtime-etat-url-value="{{ path('app_api_temps_reel_etat') }}"
+      data-realtime-flux-url-value="{{ path('app_api_temps_reel_flux') }}"
+      data-realtime-transport-value="{{ temps_reel_transport() }}"
+      data-realtime-intervalle-value="3">
+    <span class="badge__dot" aria-hidden="true"></span>
+    <span data-realtime-target="statut" role="status">Connexion au flux temps réel…</span>
+</span>

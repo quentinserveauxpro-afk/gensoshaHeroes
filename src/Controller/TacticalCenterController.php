@@ -8,6 +8,7 @@ use App\Enum\MissionStatut;
 use App\Enum\NiveauUrgence;
 use App\Repository\AlerteRepository;
 use App\Repository\HeroRepository;
+use App\Realtime\EtatTactiqueProvider;
 use App\Repository\MissionRepository;
 use App\Service\Map\TacticalMapProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -16,7 +17,7 @@ use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-#[IsGranted('ROLE_OPERATOR')]
+#[IsGranted('ROLE_STAFF')]
 final class TacticalCenterController extends AbstractController
 {
     #[Route('/', name: 'app_tactical_center', methods: ['GET'])]
@@ -25,6 +26,7 @@ final class TacticalCenterController extends AbstractController
         HeroRepository $heroes,
         TacticalMapProvider $carte,
         AlerteRepository $alertes,
+        EtatTactiqueProvider $etat,
         #[MapQueryParameter] ?MissionStatut $statut = null,
         #[MapQueryParameter] ?Difficulte $difficulte = null,
         #[MapQueryParameter] ?NiveauUrgence $urgence = null,
@@ -55,6 +57,8 @@ final class TacticalCenterController extends AbstractController
             'missions' => $liste,
             'selection' => $selection,
             'carte' => $carte->construire($actives, $heros, $selection),
+            // Instantané initial de la carte réelle (repris au rechargement, puis mis à jour en temps réel).
+            'etat' => $etat->instantane(),
             'filtres' => ['statut' => $statut, 'difficulte' => $difficulte, 'urgence' => $urgence],
             'compteurs' => $missions->compterParStatut(),
             'nbActives' => \count($actives),

@@ -388,3 +388,104 @@ fieldset { border: 0; padding: 0; margin: 0; }
     .grid-2, .grid-3, .grid-4, .sb-slots { grid-template-columns: 1fr; }
     .map-wrap, .map-svg { min-height: 24rem; }
 }
+
+/* ==========================================================================
+   Ajouts — carte réelle (Leaflet + OSM), temps réel, formulaire public, traitement.
+   ========================================================================== */
+
+/* --- Carte réelle --- */
+.map-wrap--geo { display: flex; flex-direction: column; }
+.map-geo { flex: 1; min-height: 44rem; background: #dfe8d6; z-index: 0; }
+.map-wrap--geo .map-toolbar { left: 3.5rem; right: 1rem; flex-wrap: wrap; border-radius: var(--r-md); max-width: calc(100% - 4.5rem); width: max-content; z-index: 500; }
+.map-wrap--geo .map-toolbar .btn-link { color: #ddf9cc; font-size: 12px; font-weight: 600; padding: .25rem .4rem; }
+.map-wrap--geo .map-toolbar .btn-link:hover, .map-wrap--geo .map-toolbar .btn-link:focus-visible { color: #fff; text-decoration: underline; }
+.map-toolbar__sep { width: 1px; align-self: stretch; background: rgba(255,255,255,.2); }
+.map-wrap--geo .map-hud { z-index: 600; top: 4.5rem; }
+.map-wrap--geo .map-footer { position: static; z-index: 500; align-items: center; }
+.map-legend { margin: 0; padding: .4rem 1.25rem; background: rgba(15,24,11,.85); color: #c0d6b1 !important; }
+.map-text { background: rgba(15,24,11,.85); color: #ddf9cc; padding: 0 1.25rem .6rem; }
+.map-text summary { cursor: pointer; padding: .3rem 0; }
+.map-text ul { margin: 0; padding-left: 1.2rem; font-size: 13px; }
+.leaflet-container { font-family: var(--font-body); }
+.leaflet-popup-content-wrapper { border-radius: var(--r-md); }
+.leaflet-control-attribution { font-size: 11px; }
+
+/* Marqueurs (divIcon) : forme + texte, jamais la couleur seule. */
+.map-pin { background: none; border: 0; }
+.map-pin__corps {
+    display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+    font: 800 12px var(--font-head); color: var(--primary); background: #fff;
+    border: 3px solid var(--primary-container); box-shadow: 0 2px 8px rgba(0,0,0,.35);
+}
+.map-pin--hero .map-pin__corps { position: relative; isolation: isolate; background: conic-gradient(var(--primary-container) var(--sante, 100%), #e6e6e6 0); }
+.map-pin--hero .map-pin__corps::after { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: #fff; z-index: -1; }
+.map-pin--warn .map-pin__corps { border-color: var(--amber); }
+.map-pin--danger .map-pin__corps, .map-pin--critique .map-pin__corps { border-color: var(--error); }
+.map-pin--route .map-pin__corps { border-style: dashed; animation: pin-pulse 1.6s ease-in-out infinite; }
+.map-pin--mission .map-pin__corps { border-radius: 10px 10px 10px 2px; transform: rotate(-45deg); background: var(--primary-container); color: #fff; border-color: #fff; }
+.map-pin--mission .map-pin__corps { font-size: 15px; }
+.map-pin--haute .map-pin__corps { background: var(--amber); color: #2b1a00; }
+.map-pin--critique.map-pin--mission .map-pin__corps { background: var(--error); box-shadow: 0 0 0 6px rgba(186,26,26,.25), 0 2px 8px rgba(0,0,0,.35); }
+.map-pin--selection .map-pin__corps { outline: 3px solid #fff; outline-offset: 2px; }
+.map-pin--vilain .map-pin__corps { width: 26px; height: 26px; background: #2b1111; color: #ffdad6; border-color: var(--error); font-size: 13px; }
+.map-pin--qg .map-pin__corps { border-radius: 8px; background: var(--primary); color: #c0d6b1; border-color: #c0d6b1; font-size: 10px; }
+@keyframes pin-pulse { 50% { box-shadow: 0 0 0 7px rgba(245,158,11,.25), 0 2px 8px rgba(0,0,0,.35); } }
+@media (prefers-reduced-motion: reduce) { .map-pin--route .map-pin__corps { animation: none; } }
+
+.map-popup { min-width: 15rem; font-size: 13px; }
+.map-popup__facts { margin: 0; display: grid; gap: .25rem; }
+.map-popup__facts div { display: flex; justify-content: space-between; gap: .75rem; }
+.map-popup__facts dt { color: var(--on-surface-variant); }
+.map-popup__facts dd { margin: 0; font-weight: 600; text-align: right; }
+
+.geo-mini { height: 16rem; border-radius: var(--r-md); overflow: hidden; z-index: 0; }
+
+/* --- Temps réel --- */
+.realtime-status { display: inline-flex; align-items: center; gap: .4rem; }
+.realtime-status [data-tone="ok"] { color: inherit; }
+.realtime-status [data-tone="warn"] { color: var(--amber); }
+.realtime-status [data-tone="danger"] { color: #ffb4ab; }
+.card .realtime-status { color: var(--on-surface-variant); }
+
+.team-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.team-list__item { display: flex; gap: .75rem; align-items: flex-start; padding: .6rem .8rem; border-radius: var(--r-md); background: var(--surface-low); }
+.team-list__body { flex: 1; display: grid; gap: .3rem; }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; max-height: 18rem; overflow: auto; }
+.timeline li { padding: .4rem .7rem; border-left: 3px solid var(--outline-variant); background: var(--surface-low); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.timeline li.text-danger { border-left-color: var(--error); }
+.timeline li.text-ok { border-left-color: var(--primary-container); }
+.text-ok { color: var(--primary-container); }
+.text-muted { color: var(--on-surface-variant); }
+
+.alert-item { display: flex; gap: .6rem; align-items: flex-start; padding: .6rem .8rem; border-radius: var(--r-md); background: var(--surface-low); border-left: 4px solid var(--outline); }
+.alert-item--danger { background: var(--error-container); border-left-color: var(--error); }
+.alert-item--warn { border-left-color: var(--amber); }
+.alert-item--ok { border-left-color: var(--primary-container); }
+.alert-item__body { flex: 1; display: grid; gap: .1rem; }
+.stats-grid { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+
+/* --- Fiches et formulaires de traitement --- */
+.facts { margin: 0; display: grid; gap: .5rem; }
+.facts > div { display: grid; grid-template-columns: minmax(9rem, 30%) 1fr; gap: .75rem; }
+.facts dt { color: var(--on-surface-variant); font-size: 13px; font-weight: 600; }
+.facts dd { margin: 0; }
+.filters label { white-space: nowrap; }
+
+/* --- Pages publiques --- */
+.public-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem clamp(1rem, 4vw, 3rem); background: var(--primary); color: var(--on-primary); }
+.public-header .brand__name, .public-header .brand__sub, .public-header .btn-link { color: var(--on-primary); }
+.public-main { width: min(52rem, 100%); margin: 0 auto; padding: 1.5rem 1rem 3rem; display: grid; gap: 1.25rem; }
+.public-footer { text-align: center; padding: 1rem; }
+.public-form fieldset { border: 0; padding: 0; margin: 0; }
+.public-form legend { display: flex; gap: .4rem; align-items: center; margin-bottom: .5rem; }
+.hp-field { position: absolute !important; left: -10000px !important; width: 1px; height: 1px; overflow: hidden; }
+
+@media (max-width: 720px) {
+    .map-geo { min-height: 26rem; }
+    .map-wrap--geo .map-toolbar { position: static; max-width: none; width: auto; border-radius: 0; }
+    .map-wrap--geo .map-hud { position: static; }
+    .facts > div { grid-template-columns: 1fr; gap: .1rem; }
+}
+
+.legacy-grid summary { cursor: pointer; display: flex; gap: .4rem; align-items: center; }
+.legacy-grid[open] .map-wrap { margin-top: 1rem; }

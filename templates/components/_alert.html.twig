@@ -1,0 +1,9 @@
+{# Alerte compacte (fil d'alertes, panneau temps réel). Paramètres : titre, message, tone (ok|warn|danger|muted), date #}
+<div class="alert-item alert-item--{{ tone|default('muted') }}" role="{{ tone|default('') == 'danger' ? 'alert' : 'status' }}">
+    <span class="alert-item__icon">{{ include('components/_icon.html.twig', {name: tone|default('') == 'danger' ? 'warning' : (tone|default('') == 'ok' ? 'check_circle' : 'info')}) }}</span>
+    <span class="alert-item__body">
+        <strong>{{ titre }}</strong>
+        <span class="label-md">{{ message }}</span>
+    </span>
+    {% if date|default(null) %}<time class="label-md muted" datetime="{{ date|date('c') }}">{{ date|date('H:i') }}</time>{% endif %}
+</div>

@@ -1,0 +1,7 @@
+{# Grille de statistiques d'un héros. Paramètres : stats (tableau statistique => valeur), bonus (facultatif, même clés) #}
+{% set icones = {force: 'fitness_center', agilite: 'sprint', intelligence: 'psychology', vitesse: 'bolt', endurance: 'battery_charging_full', combat: 'swords', vigueur: 'shield', mobilite: 'directions_run', charisme: 'record_voice_over'} %}
+<div class="stats-grid">
+    {% for cle, valeur in stats %}
+        {{ include('components/_stat_bar.html.twig', {label: cle|capitalize, icon: icones[cle] ?? 'analytics', value: valeur, bonus: bonus[cle] ?? 0}) }}
+    {% endfor %}
+</div>

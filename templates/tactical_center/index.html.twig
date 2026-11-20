@@ -8,7 +8,7 @@
     <div class="page-head">
         <h1 class="display">Centre Tactique</h1>
         {{ include('components/_badge.html.twig', {label: 'Grid Genosha-V', tone: 'ok'}) }}
-        <span class="label-md row" style="gap:.4rem"><span class="badge__dot" style="color:var(--primary-container)" aria-hidden="true"></span> Flux satellite : carte abstraite {{ carte.largeur }}×{{ carte.hauteur }} km</span>
+        <span class="label-md row" style="gap:.4rem"><span class="badge__dot" style="color:var(--primary-container)" aria-hidden="true"></span> Carte réelle • France métropolitaine et outre-mer</span>
     </div>
 
     <div class="tc-grid">
@@ -78,8 +78,14 @@
                 {{ include('tactical_center/_hud.html.twig', {mission: selection}) }}
             {% endif %}
         {% endset %}
-        {{ include('components/_tactical_map.html.twig', {carte: carte, selection: selection, hud: hud}) }}
+        {{ include('components/_geo_map.html.twig', {etat: etat, selection: selection, hud: hud}) }}
     </div>
+
+    {# Vue historique conservée : grille abstraite en km (positionX / positionY). #}
+    <details class="card legacy-grid">
+        <summary class="headline-sm">{{ include('components/_icon.html.twig', {name: 'grid_on'}) }} Grille tactique historique ({{ carte.largeur }} × {{ carte.hauteur }} km, coordonnées X/Y)</summary>
+        {{ include('components/_tactical_map.html.twig', {carte: carte, selection: selection, hud: null}) }}
+    </details>
 
     {% if selection and selection.herosAffectes is not empty %}
         <section class="card squad-banner" aria-label="Escouade engagée">
