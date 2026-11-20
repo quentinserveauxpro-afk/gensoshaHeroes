@@ -11,23 +11,39 @@
             <a href="{{ path('app_mission_index', {statut: s.value}) }}" {% if statut == s %}aria-current="true"{% endif %}>{{ s.label }} ({{ compteurs[s.value] ?? 0 }})</a>
         {% endfor %}
     </nav>
-    <div class="table-wrap">
+    <div class="table-wrap" data-controller="mission-status"
+         data-mission-status-url-value="{{ path('app_mission_live_status') }}"
+         data-mission-status-one-url-value="{{ path('app_mission_live_status_one', {id: 999999999})|replace({'999999999': '__ID__'}) }}">
+        <p class="label-md text-danger" data-mission-status-target="etat" role="status" hidden></p>
         <table class="table">
             <caption class="sr-only">Liste des missions</caption>
-            <thead><tr><th scope="col">Mission</th><th scope="col">Rang</th><th scope="col">Urgence</th><th scope="col">Statut</th><th scope="col">Équipe</th><th scope="col">Réussite</th><th scope="col">Temps restant</th></tr></thead>
+            <thead><tr><th scope="col">Mission</th><th scope="col">Rang</th><th scope="col">Urgence</th><th scope="col">Statut</th><th scope="col">Équipe</th><th scope="col">Objectifs</th><th scope="col">Réussite</th><th scope="col">Temps restant</th></tr></thead>
             <tbody>
                 {% for m in missions %}
-                    <tr>
-                        <td><a href="{{ path('app_mission_show', {id: m.id}) }}"><strong>{{ m.nom }}</strong></a><br><span class="label-md muted">{{ m.localisation }}</span></td>
+                    {% set suivi = live[m.id] ?? null %}
+                    <tr data-mission-id="{{ m.id }}" data-mission-name="{{ m.nom }}" data-mission-urgency="{{ m.niveauUrgence.value }}">
+                        <td><a href="{{ path('app_mission_show', {id: m.id}) }}"><strong>{{ m.nom }}</strong></a><br><span class="label-md muted">{{ m.localisation }}</span>
+                            <ul class="stack-sm" style="list-style:none;margin:0;padding:0" data-mission-alerts {% if not suivi or suivi.alerts is empty %}hidden{% endif %}>
+                                {% for a in suivi.alerts ?? [] %}<li class="label-md text-{{ a.tone == 'danger' ? 'danger' : 'muted' }}">⚠ {{ a.title }}</li>{% endfor %}
+                            </ul>
+                        </td>
                         <td>{{ m.difficulte ? m.difficulte.label : m.niveauDeDifficulte }}</td>
                         <td>{{ include('components/_badge.html.twig', {label: m.niveauUrgence.label, tone: m.niveauUrgence.tone}) }}</td>
-                        <td>{{ m.statut.label }}</td>
-                        <td>{{ m.affectationsActives|length }} / {{ m.tailleEquipeMinimale }}–{{ m.tailleEquipeMaximale }}</td>
-                        <td>{{ m.tauxDeReussite }}%</td>
-                        <td>{{ m.statut.closed ? '—' : include('components/_timer.html.twig', {mission: m}) }}</td>
+                        <td><span data-mission-status="{{ m.statut.value }}">{{ m.statut.label }}</span></td>
+                        <td>
+                            {{ m.affectationsActives|length }} / {{ m.tailleEquipeMinimale }}–{{ m.tailleEquipeMaximale }}
+                            <ul style="list-style:none;margin:0;padding:0" data-mission-heroes="compact" {% if m.herosAffectes is empty %}hidden{% endif %}>
+                                {% for h in m.herosAffectes %}
+                                    <li class="label-md" data-hero-id="{{ h.id }}" data-hero-health="{{ h.santePourcentage }}" data-hero-fatigue="{{ h.fatigue }}">{{ h.nom }} <span data-hero-health-gauge>♥ <span data-live-pct>{{ h.santePourcentage }} %</span></span> · <span class="muted" data-hero-fatigue-text>Fatigue {{ h.fatigue }}</span></li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                        <td data-mission-progress="{{ suivi.progress ?? m.progression }}" style="min-width:7rem">{{ include('components/_gauge.html.twig', {value: suivi.progress ?? m.progression, thin: true, tone: 'warn', display: (suivi.progress ?? m.progression) ~ ' %', label: ' ', aria_label: 'Progression des objectifs de ' ~ m.nom}) }}</td>
+                        <td data-mission-success-rate="{{ m.tauxDeReussite }}"><span data-live-pct>{{ m.tauxDeReussite }} %</span></td>
+                        <td>{{ include('components/_timer.html.twig', {mission: m}) }}</td>
                     </tr>
                 {% else %}
-                    <tr><td colspan="7" class="muted">Aucune mission.</td></tr>
+                    <tr><td colspan="8" class="muted">Aucune mission.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

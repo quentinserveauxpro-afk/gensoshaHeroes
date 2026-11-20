@@ -2,14 +2,14 @@
 <ol class="objectives">
     {% for objectif in objectifs %}
         {% set etat = objectif.etat %}
-        <li class="objective objective--{{ etat }}">
+        <li class="objective objective--{{ etat }}" data-objective-id="{{ objectif.id }}" data-objective-progress="{{ objectif.termine ? 100 : objectif.progression }}" data-objective-title="{{ objectif.titre }}">
             <span class="objective__icon">{{ include('components/_icon.html.twig', {
                 name: etat == 'termine' ? 'check_circle' : (etat == 'en_cours' ? 'progress_activity' : 'radio_button_unchecked'),
                 label: etat == 'termine' ? 'Terminé' : (etat == 'en_cours' ? 'En cours' : 'En attente'),
             }) }}</span>
             <span class="objective__title">{{ objectif.titre }}{% if not objectif.obligatoire %} <span class="muted">(facultatif)</span>{% endif %}</span>
-            <span class="objective__pct">{{ etat == 'en_attente' ? 'En attente' : objectif.progression ~ '%' }}</span>
-            {% if etat == 'en_cours' %}{{ include('components/_gauge.html.twig', {value: objectif.progression, thin: true, tone: 'warn', aria_label: 'Progression ' ~ objectif.titre}) }}{% endif %}
+            <span class="objective__pct" data-live-pct>{{ etat == 'termine' ? 'Atteint' : (etat == 'en_attente' ? 'En attente' : objectif.progression ~ ' %') }}</span>
+            <div class="objective__gauge" data-objective-gauge="masquable" {% if etat != 'en_cours' %}hidden{% endif %}>{{ include('components/_gauge.html.twig', {value: objectif.progression, thin: true, tone: 'warn', aria_label: 'Progression ' ~ objectif.titre}) }}</div>
             {% if objectif.description %}<span class="objective__desc">{{ objectif.description }}</span>{% endif %}
             {% if editable|default(false) %}
                 <div class="objective__desc row">

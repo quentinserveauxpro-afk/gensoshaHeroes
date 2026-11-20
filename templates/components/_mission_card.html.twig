@@ -1,6 +1,8 @@
 {# Carte de mission. Paramètres : mission, selected (bool), url (lien de sélection) #}
 {% set equipe = mission.herosAffectes %}
-<article class="card mission-card" {% if selected|default(false) %}aria-current="true"{% endif %}>
+{% set progression = (live|default({}))[mission.id].progress ?? mission.progression %}
+<article class="card mission-card{% if mission.critique %} is-critical{% endif %}" {% if selected|default(false) %}aria-current="true"{% endif %}
+         data-mission-id="{{ mission.id }}" data-mission-name="{{ mission.nom }}" data-mission-urgency="{{ mission.niveauUrgence.value }}">
     <div class="row row--between">
         {{ include('components/_mission_badge.html.twig') }}
         {% if equipe is empty and mission.niveauUrgence.urgent %}
@@ -10,13 +12,18 @@
         {% endif %}
     </div>
     <h3 class="mission-card__title"><a href="{{ url|default(path('app_tactical_center', {mission: mission.id})) }}">{{ mission.nom }}</a></h3>
-    <p class="muted" style="margin:0">{{ mission.localisation ?? mission.description|tronquer(80) }}</p>
+    <p class="muted" style="margin:0">{{ mission.localisation ?? mission.description|tronquer(80) }} • <span data-mission-status="{{ mission.statut.value }}">{{ mission.statut.label }}</span></p>
     {% if equipe is not empty %}
-        <div class="mission-card__meta">
-            <span>Succès estimé : <strong style="font-size:15px">{{ mission.tauxDeReussite }}%</strong></span>
-            <span>{{ include('components/_icon.html.twig', {name: 'near_me'}) }} {{ distance_km(equipe|first, mission) }} km</span>
+        <div data-mission-success-rate="{{ mission.tauxDeReussite }}">
+            <div class="mission-card__meta">
+                <span>Succès estimé : <strong style="font-size:15px" data-live-pct>{{ mission.tauxDeReussite }} %</strong></span>
+                <span>{{ include('components/_icon.html.twig', {name: 'near_me'}) }} {{ distance_km(equipe|first, mission) }} km</span>
+            </div>
+            {{ include('components/_gauge.html.twig', {value: mission.tauxDeReussite, label: null, thin: true, aria_label: 'Taux de réussite estimé'}) }}
         </div>
-        {{ include('components/_gauge.html.twig', {value: mission.tauxDeReussite, label: null, thin: true}) }}
+        <div data-mission-progress="{{ progression }}">
+            {{ include('components/_gauge.html.twig', {value: progression, label: 'Objectifs', thin: true, tone: 'warn', aria_label: 'Progression des objectifs'}) }}
+        </div>
         <div class="row row--between">
             <span class="row" style="gap:.4rem">
                 <span class="avatar-stack">{% for hero in equipe %}{{ include('components/_hero_avatar.html.twig', {hero: hero, size: 30}) }}{% endfor %}</span>
@@ -24,6 +31,7 @@
             </span>
             <a class="btn btn--soft btn--sm" href="{{ path('app_mission_show', {id: mission.id}) }}">Détails</a>
         </div>
+        <ul class="stack-sm" style="list-style:none;margin:0;padding:0" data-mission-alerts hidden></ul>
     {% else %}
         <div class="panel row row--between label-md">
             <span>{{ include('components/_icon.html.twig', {name: 'person_off'}) }} Aucune unité engagée</span>

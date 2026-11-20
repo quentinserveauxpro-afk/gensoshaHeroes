@@ -9,6 +9,7 @@ use App\Enum\NiveauUrgence;
 use App\Repository\AlerteRepository;
 use App\Repository\HeroRepository;
 use App\Realtime\EtatTactiqueProvider;
+use App\Realtime\MissionLiveStatusProvider;
 use App\Repository\MissionRepository;
 use App\Service\Map\TacticalMapProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,6 +28,7 @@ final class TacticalCenterController extends AbstractController
         TacticalMapProvider $carte,
         AlerteRepository $alertes,
         EtatTactiqueProvider $etat,
+        MissionLiveStatusProvider $suivi,
         #[MapQueryParameter] ?MissionStatut $statut = null,
         #[MapQueryParameter] ?Difficulte $difficulte = null,
         #[MapQueryParameter] ?NiveauUrgence $urgence = null,
@@ -51,7 +53,11 @@ final class TacticalCenterController extends AbstractController
         $engagees = array_filter($actives, static fn (Mission $m) => [] !== $m->getAffectationsActives());
         $protection = [] === $engagees ? 0.0 : round(array_sum(array_map(static fn (Mission $m) => (int) $m->getTauxDeReussite(), $engagees)) / \count($engagees), 1);
 
+        $ids = array_map(static fn (Mission $m) => (int) $m->getId(), [...$liste, ...($selection ? [$selection] : [])]);
+        $live = $suivi->pourIdentifiants(array_values(array_unique($ids)));
+
         return $this->render('tactical_center/index.html.twig', [
+            'live' => array_column($live['missions'], null, 'id'),
             'protection' => $protection,
             'alerte' => $alertes->findActives(1)[0] ?? null,
             'missions' => $liste,

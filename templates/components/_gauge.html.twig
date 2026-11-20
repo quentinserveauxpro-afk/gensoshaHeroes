@@ -5,7 +5,7 @@
 {% set tone = tone|default(jauge_tone(pct)) %}
 <div class="gauge gauge--{{ tone }}{% if thin|default(false) %} gauge--thin{% endif %}">
     {% if label|default(null) or display|default(null) %}
-        <div class="gauge__head"><span>{{ label|default('') }}</span><span>{{ display|default(pct ~ ' %') }}</span></div>
+        <div class="gauge__head"><span>{{ label|default('') }}</span><span data-live-pct>{{ display|default(pct ~ ' %') }}</span></div>
     {% endif %}
     <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="{{ max }}" aria-valuenow="{{ value }}" aria-label="{{ aria_label|default(label|default('Progression')) }}">
         <div class="gauge__fill" style="width: {{ pct }}%"></div>

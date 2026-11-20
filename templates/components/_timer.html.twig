@@ -1,11 +1,15 @@
-{# Compte à rebours : valeur de référence serveur, actualisée par le contrôleur Stimulus « countdown ».
+{# Compte à rebours : valeur de référence serveur, actualisée par le contrôleur Stimulus « countdown »
+   (resynchronisé à chaque réponse de « mission-status » quand la page est actualisée en direct).
    Paramètres : mission, big (bool) #}
 {% set t = mission_timer(mission) %}
-<span class="timer{% if big|default(false) %} timer--big{% endif %}{% if t.termine %} timer--done{% endif %}"
+{% set fin = mission.statut.closed ? 'Mission ' ~ mission.statut.label|lower : '' %}
+<span class="timer{% if big|default(false) %} timer--big{% endif %}{% if t.termine or fin %} timer--done{% endif %}"
       data-controller="countdown"
-      data-countdown-seconds-value="{{ t.secondesRestantes }}"
+      data-mission-timer
+      data-countdown-seconds-value="{{ fin ? 0 : t.secondesRestantes }}"
+      data-countdown-fin-value="{{ fin }}"
       data-countdown-url-value="{{ path('app_api_mission_timer', {id: mission.id}) }}"
       role="timer" aria-live="off" aria-label="Temps restant">
     {%- if not big|default(false) %}{{ include('components/_icon.html.twig', {name: 'schedule'}) }}{% endif -%}
-    <span data-countdown-target="output">{{ t.libelle }}</span>
+    <span data-countdown-target="output">{{ fin ?: (t.termine ? '00:00' : t.libelle) }}</span>
 </span>

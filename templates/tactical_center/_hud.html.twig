@@ -1,7 +1,10 @@
 {# HUD de la mission sélectionnée (superposé à la carte). Paramètre : mission #}
-<article class="card card--hud stack" aria-labelledby="hud-titre">
+{% set suivi = (live|default({}))[mission.id] ?? null %}
+{% set progression = suivi ? suivi.progress : mission.progression %}
+<article class="card card--hud stack{% if mission.critique %} is-critical{% endif %}" aria-labelledby="hud-titre"
+         data-mission-id="{{ mission.id }}" data-mission-name="{{ mission.nom }}" data-mission-urgency="{{ mission.niveauUrgence.value }}">
     <div class="row row--between">
-        <span class="label-sm text-danger row" style="gap:.35rem"><span class="pulse" style="width:8px;height:8px" aria-hidden="true"></span> Mission {{ mission.statut.label|lower }}</span>
+        <span class="label-sm text-danger row" style="gap:.35rem"><span class="pulse" style="width:8px;height:8px" aria-hidden="true"></span> Mission <span data-mission-status="{{ mission.statut.value }}" data-format="lower">{{ mission.statut.label|lower }}</span></span>
         {{ include('components/_badge.html.twig', {label: mission.difficulte ? mission.difficulte.label : '?', tone: 'danger'}) }}
     </div>
     <h3 id="hud-titre" class="headline-md">{{ mission.nom }}</h3>
@@ -10,29 +13,39 @@
             <span class="label-md">Temps critique restant</span><br>
             {{ include('components/_timer.html.twig', {mission: mission, big: true}) }}
         </div>
-        {{ include('components/_ring.html.twig', {value: mission.tauxDeReussite, size: 72, sublabel: 'Taux de réussite estimé'}) }}
+        <div data-mission-success-rate="{{ mission.tauxDeReussite }}">
+            {{ include('components/_ring.html.twig', {value: mission.tauxDeReussite, size: 72, sublabel: 'Taux de réussite estimé'}) }}
+        </div>
+    </div>
+
+    <div data-mission-progress="{{ progression }}">
+        {{ include('components/_gauge.html.twig', {value: progression, label: 'Objectifs obligatoires', thin: true, tone: 'warn', aria_label: 'Progression des objectifs obligatoires'}) }}
     </div>
 
     <h4 class="label-sm">Objectifs tactiques</h4>
     {{ include('components/_objective_list.html.twig', {objectifs: mission.objectifs, mission: mission}) }}
 
-    {% if mission.herosAffectes is not empty %}
-        <h4 class="label-sm">Héros affectés</h4>
-        <ul class="stack-sm" style="list-style:none;margin:0;padding:0">
-            {% for hero in mission.herosAffectes %}
-                <li class="row">
-                    {{ include('components/_hero_avatar.html.twig', {hero: hero, size: 34, status: true}) }}
-                    <div style="flex:1">
+    <h4 class="label-sm" {% if mission.herosAffectes is empty %}hidden{% endif %}>Héros affectés</h4>
+    <ul class="stack-sm" style="list-style:none;margin:0;padding:0" data-mission-heroes {% if mission.herosAffectes is empty %}hidden{% endif %}>
+        {% for hero in mission.herosAffectes %}
+            <li class="row{% if hero.santePourcentage <= 25 %} is-critical{% endif %}" data-hero-id="{{ hero.id }}" data-hero-health="{{ hero.santePourcentage }}" data-hero-fatigue="{{ hero.fatigue }}">
+                {{ include('components/_hero_avatar.html.twig', {hero: hero, size: 34, status: true}) }}
+                <div style="flex:1">
+                    <div data-hero-health-gauge>
                         {{ include('components/_gauge.html.twig', {
                             value: hero.pointsDeVie, max: hero.pointsDeVieMaximum,
                             label: hero.nom ~ ' • ' ~ distance_km(hero, mission) ~ ' km',
-                            display: hero.santePourcentage ~ ' %', thin: true,
+                            display: hero.santePourcentage ~ ' %', thin: true, tone: jauge_tone(hero.santePourcentage),
+                            aria_label: 'Santé de ' ~ hero.nom,
                         }) }}
                     </div>
-                </li>
-            {% endfor %}
-        </ul>
-    {% endif %}
+                    <span class="label-md muted" data-hero-fatigue-text>Fatigue {{ hero.fatigue }}</span>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <ul class="stack-sm" style="list-style:none;margin:0;padding:0" data-mission-alerts hidden></ul>
 
     <div class="grid grid-2" style="gap:.5rem">
         {% if mission.herosAffectes is empty and not mission.statut.closed %}

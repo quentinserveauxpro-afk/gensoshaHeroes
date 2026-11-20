@@ -14,6 +14,7 @@ use App\Form\ObjectifMissionType;
 use App\Geo\Coordonnees;
 use App\Geo\Geocoding\AdressePostale;
 use App\Geo\GeolocalisationService;
+use App\Realtime\MissionLiveStatusProvider;
 use App\Repository\MissionSimulationStateRepository;
 use App\Security\RoleCatalog;
 use App\Security\Voter\MissionVoter;
@@ -40,13 +41,18 @@ final class MissionController extends AbstractController
     public const PAR_PAGE = 10;
 
     #[Route('', name: 'app_mission_index', methods: ['GET'])]
-    public function index(MissionRepository $missions, #[MapQueryParameter] int $page = 1, #[MapQueryParameter] ?MissionStatut $statut = null): Response
+    public function index(MissionRepository $missions, MissionLiveStatusProvider $suivi, #[MapQueryParameter] int $page = 1, #[MapQueryParameter] ?MissionStatut $statut = null): Response
     {
         $page = max(1, $page);
         $paginator = $missions->paginer($page, self::PAR_PAGE, $statut);
+        $liste = iterator_to_array($paginator);
+        // Valeurs initiales identiques au rafraîchissement automatique ; la requête groupée
+        // charge aussi objectifs, équipes et héros de la page (pas de N+1 dans le gabarit).
+        $etat = $suivi->pourIdentifiants(array_map(static fn ($m) => (int) $m->getId(), $liste));
 
         return $this->render('mission/index.html.twig', [
-            'missions' => iterator_to_array($paginator),
+            'missions' => $liste,
+            'live' => array_column($etat['missions'], null, 'id'),
             'page' => $page,
             'pages' => max(1, (int) ceil(\count($paginator) / self::PAR_PAGE)),
             'statut' => $statut,

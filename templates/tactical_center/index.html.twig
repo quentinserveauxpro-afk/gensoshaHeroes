@@ -11,7 +11,10 @@
         <span class="label-md row" style="gap:.4rem"><span class="badge__dot" style="color:var(--primary-container)" aria-hidden="true"></span> Carte réelle • France métropolitaine et outre-mer</span>
     </div>
 
-    <div class="tc-grid">
+    <div class="tc-grid" data-controller="mission-status"
+         data-mission-status-url-value="{{ path('app_mission_live_status') }}"
+         data-mission-status-one-url-value="{{ path('app_mission_live_status_one', {id: 999999999})|replace({'999999999': '__ID__'}) }}"
+         data-mission-status-selection-value="{{ selection ? selection.id : 0 }}">
         <div class="tc-list">
             <section class="card" aria-labelledby="missions-titre">
                 <div class="card__header">
