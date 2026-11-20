@@ -14,12 +14,15 @@ final class RoleCatalog
     /** Rôle historique, non attribuable aux nouveaux comptes. */
     public const OPERATEUR_HISTORIQUE = 'ROLE_OPERATOR';
     public const STAFF = 'ROLE_STAFF';
+    /** Compte citoyen : signalement d'incident uniquement (aucun accès interne). */
+    public const CITOYEN = 'ROLE_CITOYEN';
 
     /** @var array<string, string> rôle => libellé */
     public const ATTRIBUABLES = [
         self::MISSION_OPERATOR => 'Opérateur missions',
         self::HERO_OPERATOR => 'Opérateur héros',
         self::ADMIN => 'Administrateur',
+        self::CITOYEN => 'Citoyen',
     ];
 
     /** @return array<string, string> libellé => rôle (format ChoiceType) */
@@ -44,7 +47,7 @@ final class RoleCatalog
     /** Type de compte principal d'une liste de rôles stockés. */
     public static function typeDeCompte(array $roles): ?string
     {
-        foreach ([self::ADMIN, self::MISSION_OPERATOR, self::HERO_OPERATOR] as $role) {
+        foreach ([self::ADMIN, self::MISSION_OPERATOR, self::HERO_OPERATOR, self::CITOYEN] as $role) {
             if (\in_array($role, $roles, true)) {
                 return $role;
             }

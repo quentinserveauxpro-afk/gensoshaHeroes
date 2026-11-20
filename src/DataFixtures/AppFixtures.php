@@ -423,6 +423,7 @@ class AppFixtures extends Fixture
         foreach ([
             ['missions@genosha.test', 'missions-genosha', 'Sgt. L. Moreau', 'Opératrice missions', ['ROLE_MISSION_OPERATOR']],
             ['heros@genosha.test', 'heros-genosha', 'Cpt. J. Ndiaye', 'Opérateur héros', ['ROLE_HERO_OPERATOR']],
+            ['citoyen@genosha.test', 'citoyen-genosha', 'Camille Martin', null, ['ROLE_CITOYEN']],
         ] as [$email, $mdp, $nom, $fonction, $roles]) {
             $user = (new User())->setEmail($email)->setNom($nom)->setFonction($fonction)->setRoles($roles);
             $user->setPassword($this->hasher->hashPassword($user, $mdp));

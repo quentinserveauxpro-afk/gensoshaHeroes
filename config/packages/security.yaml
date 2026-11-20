@@ -16,7 +16,10 @@ security:
     # - ROLE_MISSION_OPERATOR : requêtes citoyennes, création et gestion des missions ;
     # - ROLE_HERO_OPERATOR    : roster, Squad Builder, déploiement, suivi des héros.
     # ROLE_OPERATOR (opérateur polyvalent historique) garde exactement ses droits antérieurs.
+    # - ROLE_CITOYEN          : compte citoyen, limité à l'espace /citoyen (signalement et sa
+    #                           confirmation) ; il n'hérite d'aucun rôle du personnel.
     role_hierarchy:
+        ROLE_CITOYEN: ROLE_USER
         ROLE_STAFF: ROLE_USER
         ROLE_MISSION_OPERATOR: ROLE_STAFF
         ROLE_HERO_OPERATOR: ROLE_STAFF
@@ -50,7 +53,11 @@ security:
     # Note: Only the *first* matching rule is applied
     access_control:
         - { path: ^/login$, roles: PUBLIC_ACCESS }
+        # La déconnexion doit rester possible pour tout compte (citoyen compris) : sans cette
+        # règle, « ^/ » (ROLE_STAFF) refuserait /logout avant que le pare-feu ne le traite.
+        - { path: ^/logout$, roles: PUBLIC_ACCESS }
         - { path: ^/demande-intervention, roles: PUBLIC_ACCESS }
+        - { path: ^/citoyen, roles: ROLE_CITOYEN }
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/, roles: ROLE_STAFF }
 
