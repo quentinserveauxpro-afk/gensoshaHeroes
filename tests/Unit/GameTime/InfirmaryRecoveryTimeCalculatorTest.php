@@ -86,4 +86,28 @@ final class InfirmaryRecoveryTimeCalculatorTest extends TestCase
         self::assertSame(530, $this->duree(40, 50, ctx: new ContexteRecuperation([], 6)), 'capacité atteinte, pas dépassée');
         self::assertSame((int) round(530.4 * 1.1), $this->duree(40, 50, motif: MotifInfirmerie::BLESSURE));
     }
+
+    private function durees(int $pv, int $fatigue, MotifInfirmerie $motif = MotifInfirmerie::DECISION_MEDICALE): array
+    {
+        $hero = Builder::hero(['pv' => $pv, 'pvMax' => 100, 'fatigue' => $fatigue, 'vigueur' => 50]);
+
+        return $this->calc->durees(new SejourInfirmerie($hero, $motif, TypeAdmission::AUTOMATIQUE, 100, 0, $this->now), new ContexteRecuperation(), $this->now);
+    }
+
+    public function testRepartitionSanteEtFatigueLaPlusLongueFaitLaSortie(): void
+    {
+        // Poids santé 0,36, fatigue 0,20 : la santé occupe toute la durée.
+        self::assertSame(['sante' => 530, 'fatigue' => 294, 'total' => 530], $this->durees(40, 50));
+        // Santé presque pleine, fatigue lourde : la fatigue fait la sortie.
+        $d = $this->durees(90, 80);
+        self::assertSame($d['total'], $d['fatigue']);
+        self::assertLessThan($d['fatigue'], $d['sante']);
+    }
+
+    public function testComposanteDejaAtteinteSansDuree(): void
+    {
+        self::assertSame(0, $this->durees(100, 30)['sante'], 'santé maximale : seule la fatigue reste');
+        self::assertSame(0, $this->durees(55, 0)['fatigue'], 'fatigue nulle : seule la santé reste');
+        self::assertSame(['sante' => 0, 'fatigue' => 0, 'total' => 60], $this->durees(100, 0), 'minimum d\'une minute');
+    }
 }

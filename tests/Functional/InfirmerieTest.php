@@ -188,7 +188,7 @@ final class InfirmerieTest extends AppWebTestCase
         $jetonEnCours = $crawler->filter('[data-sejour="'.$enCours->getId().'"] form[data-champ="sortie"] input[name="_token"]')->attr('value');
         $this->client->request('POST', '/infirmerie/sejours/'.$enCours->getId().'/sortie', ['_token' => $jetonEnCours]);
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.flash--danger', 'pas encore rétabli');
+        self::assertSelectorTextContains('.flash--danger', 'pas encore totalement rétabli');
 
         $crawler = $this->client->request('GET', '/infirmerie');
         $this->client->submit($crawler->filter('[data-sejour="'.$retabli->getId().'"]')->selectButton('Valider la sortie')->form());
@@ -277,5 +277,75 @@ final class InfirmerieTest extends AppWebTestCase
             self::assertGreaterThanOrEqual(0, $s['progressionSoin']);
             self::assertLessThanOrEqual(100, $s['progressionSoin']);
         }
+    }
+
+    public function testAffichageDuStatutIntermediaireEtReposTermine(): void
+    {
+        $intermediaire = $this->sejour($this->heroPersiste(['nom' => 'Fourbu', 'pv' => 100, 'pvMax' => 100, 'fatigue' => 30]));
+        $termine = $this->sejour($this->heroPersiste(['nom' => 'Reposé', 'pv' => 100, 'fatigue' => 0]), statut: StatutSejour::RETABLI);
+        $blesse = $this->sejour($this->heroPersiste(['nom' => 'Blessé', 'pv' => 60, 'fatigue' => 30]));
+        $this->connecter('ROLE_HERO_OPERATOR');
+
+        $crawler = $this->client->request('GET', '/infirmerie');
+        $carte = static fn (SejourInfirmerie $s) => $crawler->filter('[data-sejour="'.$s->getId().'"]');
+        self::assertSame('Santé rétablie, récupération de fatigue en cours', trim($carte($intermediaire)->filter('[data-champ="phase-recuperation"]')->text()));
+        self::assertNull($carte($intermediaire)->filter('[data-champ="phase-recuperation"]')->attr('hidden'));
+        self::assertSame('100 / 100 PV (100 %)', trim($carte($intermediaire)->filter('[data-champ="sante-texte"]')->text()));
+        self::assertSame('30 / 100', trim($carte($intermediaire)->filter('[data-champ="fatigue-texte"]')->text()));
+        self::assertNotNull($carte($intermediaire)->filter('form[data-champ="sortie"]')->attr('hidden'));
+        self::assertSame('Repos terminé', trim($carte($termine)->filter('[data-champ="phase-recuperation"]')->text()));
+        self::assertNull($carte($termine)->filter('form[data-champ="sortie"]')->attr('hidden'));
+        self::assertNotNull($carte($blesse)->filter('[data-champ="phase-recuperation"]')->attr('hidden'));
+        self::assertStringContainsString('fatigue à 0', $crawler->filter('main')->text());
+
+        $this->client->request('GET', '/api/temps-reel/etat');
+        $sejours = array_column(json_decode((string) $this->client->getResponse()->getContent(), true)['infirmerie']['sejours'], null, 'id');
+        self::assertTrue($sejours[$intermediaire->getId()]['santeRetablie']);
+        self::assertFalse($sejours[$intermediaire->getId()]['reposTermine']);
+        self::assertFalse($sejours[$intermediaire->getId()]['sortieAutorisee']);
+        self::assertTrue($sejours[$termine->getId()]['reposTermine']);
+        self::assertTrue($sejours[$termine->getId()]['sortieAutorisee']);
+        self::assertNull($sejours[$blesse->getId()]['phaseRecuperation']);
+    }
+
+    public function testSortieRefuseeSiLaFatigueNEstPasNulle(): void
+    {
+        // Séjour déclaré rétabli selon l'ancienne règle (fatigue ≤ 20) : sortie désormais interdite.
+        $hero = $this->heroPersiste(['pv' => 100, 'fatigue' => 20, 'statut' => HeroStatut::BLESSE]);
+        $sejour = $this->sejour($hero, statut: StatutSejour::RETABLI);
+        $this->connecter('ROLE_HERO_OPERATOR');
+
+        $crawler = $this->client->request('GET', '/infirmerie');
+        self::assertSelectorExists('[data-sejour="'.$sejour->getId().'"] form[data-champ="sortie"][hidden]');
+        $jeton = $crawler->filter('[data-sejour="'.$sejour->getId().'"] form[data-champ="sortie"] input[name="_token"]')->attr('value');
+        $this->client->request('POST', '/infirmerie/sejours/'.$sejour->getId().'/sortie', ['_token' => $jeton]);
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash--danger', 'fatigue 20');
+        $this->em->clear();
+        self::assertSame(StatutSejour::RETABLI, $this->em->find(SejourInfirmerie::class, $sejour->getId())->getStatut());
+        self::assertSame(HeroStatut::BLESSE, $this->em->find(Hero::class, $hero->getId())->getStatut());
+    }
+
+    public function testSquadBuilderTantQueSanteOuFatigueIncompletes(): void
+    {
+        $mission = Builder::mission();
+        $fourbu = Builder::hero(['nom' => 'Fourbu', 'pv' => 100, 'fatigue' => 1, 'statut' => HeroStatut::DISPONIBLE]);
+        $affaibli = Builder::hero(['nom' => 'Affaibli', 'pv' => 99, 'fatigue' => 0, 'statut' => HeroStatut::DISPONIBLE]);
+        $gueri = Builder::hero(['nom' => 'Guéri', 'pv' => 100, 'fatigue' => 0, 'statut' => HeroStatut::BLESSE]);
+        self::persister($this->em, $mission, $fourbu, $affaibli, $gueri);
+        $this->sejour($fourbu);
+        $this->sejour($affaibli);
+        $sortie = $this->sejour($gueri, statut: StatutSejour::RETABLI);
+        $this->connecter('ROLE_HERO_OPERATOR');
+
+        $this->client->request('GET', '/squad-builder/'.$mission->getId().'?equipe='.$fourbu->getId().','.$affaibli->getId());
+        self::assertSelectorTextContains('[data-test="exclus-infirmerie"]', 'Fourbu — Santé rétablie, récupération de fatigue en cours');
+        self::assertSelectorTextContains('[data-test="exclus-infirmerie"]', 'Affaibli — Traitement médical');
+
+        // Repos terminé et sortie validée : de nouveau sélectionnable.
+        $crawler = $this->client->request('GET', '/infirmerie');
+        $this->client->submit($crawler->filter('[data-sejour="'.$sortie->getId().'"]')->selectButton('Valider la sortie')->form());
+        $this->client->request('GET', '/squad-builder/'.$mission->getId().'?equipe='.$gueri->getId());
+        self::assertSelectorNotExists('[data-test="exclus-infirmerie"]');
     }
 }

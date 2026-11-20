@@ -69,19 +69,39 @@ final class HeroMedicalEvaluationServiceTest extends TestCase
 
     public function testSeuilsConfigurablesSansModifierLeCode(): void
     {
-        $strict = new HeroMedicalEvaluationService(new InfirmerieConfiguration(santeCritique: 50.0, fatigueCritique: 60.0, santeSortie: 80.0, fatigueSortie: 30.0));
+        $strict = new HeroMedicalEvaluationService(new InfirmerieConfiguration(santeCritique: 50.0, fatigueCritique: 60.0));
         self::assertTrue($strict->estSanteCritique(Builder::hero(['pv' => 45, 'pvMax' => 100])));
         self::assertTrue($strict->estFatigueCritique(Builder::hero(['fatigue' => 60])));
-        self::assertSame(80, $strict->santeCible(Builder::hero(['pvMax' => 100])));
-        self::assertSame(30, $strict->fatigueCible());
+        // La règle de sortie n'est pas configurable : santé maximale et fatigue nulle.
+        self::assertSame(100, $strict->santeCible(Builder::hero(['pvMax' => 100])));
+        self::assertSame(0, $strict->fatigueCible());
     }
 
     public function testCiblesDeSortieEtRetablissement(): void
     {
         self::assertSame(333, $this->service->santeCible(Builder::hero(['pvMax' => 333])));
-        self::assertSame(20, $this->service->fatigueCible());
-        self::assertTrue($this->service->estRetabli(333.0, 20.0, 333, 20));
-        self::assertFalse($this->service->estRetabli(332.5, 20.0, 333, 20));
-        self::assertFalse($this->service->estRetabli(333.0, 20.5, 333, 20));
+        self::assertSame(0, $this->service->fatigueCible());
+        self::assertTrue(HeroMedicalEvaluationService::estRetabli(333, 333, 0));
+        self::assertFalse(HeroMedicalEvaluationService::estRetabli(332.5, 333, 0));
+        self::assertFalse(HeroMedicalEvaluationService::estRetabli(333, 333, 0.5));
+    }
+
+    /** Règle de sortie : points de vie == maximum ET fatigue == 0 (les deux obligatoires). */
+    #[\PHPUnit\Framework\Attributes\DataProvider('casDeSortie')]
+    public function testRegleDeSortie(int $pv, int $fatigue, bool $sortie): void
+    {
+        self::assertSame($sortie, HeroMedicalEvaluationService::estRetabli($pv, 100, $fatigue));
+        self::assertSame($sortie, $this->service->heroRetabli(Builder::hero(['pv' => $pv, 'pvMax' => 100, 'fatigue' => $fatigue])));
+    }
+
+    /** @return iterable<string, array{int, int, bool}> */
+    public static function casDeSortie(): iterable
+    {
+        yield 'santé 100 % + fatigue 20 : reste' => [100, 20, false];
+        yield 'santé 100 % + fatigue 15 : reste' => [100, 15, false];
+        yield 'santé 100 % + fatigue 1 : reste' => [100, 1, false];
+        yield 'santé 99 % + fatigue 0 : reste' => [99, 0, false];
+        yield 'santé 95 % + fatigue 0 : reste' => [95, 0, false];
+        yield 'santé 100 % + fatigue 0 : sortie' => [100, 0, true];
     }
 }

@@ -28,13 +28,16 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Récupération progressive sur une durée fixée à l'arrivée (horloge explicite : aucune attente).
- * Héros de référence : 40/100 PV, fatigue 50, vigueur 50 → soin de 530 s (cibles 100 PV, fatigue 20).
+ * Récupération progressive (horloge explicite : aucune attente). Règle de sortie : points de vie
+ * au maximum ET fatigue à 0.
+ * Héros de référence : 40/100 PV, fatigue 50, vigueur 50 → soin de 530 s ; santé en 530 s
+ * (poids 0,36), fatigue en 294 s (poids 0,20) : la sortie suit la santé, la plus longue.
  */
 final class HeroRecoveryServiceTest extends TestCase
 {
     private const T0 = '2026-11-20 10:00:00';
     private const DUREE = 530;
+    private const DUREE_FATIGUE = 294;
 
     /** @var list<object> */
     private array $persistes = [];
@@ -86,13 +89,108 @@ final class HeroRecoveryServiceTest extends TestCase
         $sejour = $this->enTraitement($service, $hero);
 
         $service->actualiser($sejour, self::a('+265 seconds'), new ContexteRecuperation());
-        // p = 265 / 530 = 0,5 → santé 40 + 0,5 × 60 = 70 ; fatigue 50 − 0,5 × 30 = 35.
-        self::assertEqualsWithDelta(70.0, $sejour->getSanteActuelle(), 1e-9);
-        self::assertEqualsWithDelta(35.0, $sejour->getFatigueActuelle(), 1e-9);
+        // Santé : 40 + 265/530 × 60 = 70 ; fatigue : 50 − 265/294 × 50 ≈ 4,93.
+        self::assertEqualsWithDelta(70.0, $sejour->getSanteActuelle(), 1e-6);
+        self::assertEqualsWithDelta(50 - 265 / self::DUREE_FATIGUE * 50, $sejour->getFatigueActuelle(), 1e-6);
         self::assertSame(70, $hero->getPointsDeVie());
-        self::assertSame(35, $hero->getFatigue());
+        self::assertSame(5, $hero->getFatigue());
         self::assertSame(265, $service->secondesRestantes($sejour, self::a('+265 seconds')));
         self::assertEqualsWithDelta(0.5, $service->etatA($sejour, self::a('+265 seconds'))[2], 1e-9);
+    }
+
+    public function testFatigueNulleAvantLaSanteLaSanteContinue(): void
+    {
+        $service = $this->service();
+        $hero = $this->hero();
+        $sejour = $this->enTraitement($service, $hero);
+
+        // Fatigue nulle à 294 s : elle s'arrête, la santé continue jusqu'à 530 s.
+        $service->actualiser($sejour, self::a('+300 seconds'), new ContexteRecuperation());
+        self::assertSame(0.0, $sejour->getFatigueActuelle());
+        self::assertSame(0, $hero->getFatigue());
+        self::assertLessThan(100, $hero->getPointsDeVie());
+        self::assertSame(StatutSejour::EN_TRAITEMENT, $sejour->getStatut(), 'santé 99 % + fatigue 0 : reste en infirmerie');
+        // Temps restant calculé sur la santé.
+        self::assertSame(['sante' => 230, 'fatigue' => 0, 'total' => 230], $service->restants($sejour, self::a('+300 seconds')));
+
+        $service->actualiser($sejour, self::a('+529 seconds'), new ContexteRecuperation());
+        self::assertSame(99, $hero->getPointsDeVie());
+        self::assertSame(StatutSejour::EN_TRAITEMENT, $sejour->getStatut());
+        self::assertSame(['retabli'], $service->actualiser($sejour, self::a('+530 seconds'), new ContexteRecuperation()));
+    }
+
+    public function testSanteMaximaleAvantLaFatigueLaFatigueContinue(): void
+    {
+        $service = $this->service();
+        $hero = $this->hero(90, 80);
+        $sejour = $this->enTraitement($service, $hero);
+        $restants = $service->restants($sejour, self::a('+0 sec'));
+        // Temps restant calculé sur la fatigue : la plus longue des deux.
+        self::assertGreaterThan($restants['sante'], $restants['fatigue']);
+        self::assertSame($restants['fatigue'], $restants['total']);
+
+        $apresSante = self::a(sprintf('+%d seconds', $restants['sante']));
+        $service->actualiser($sejour, $apresSante, new ContexteRecuperation());
+        self::assertSame(100, $hero->getPointsDeVie(), 'santé maximale : la récupération de santé s\'arrête');
+        self::assertGreaterThan(0, $hero->getFatigue(), 'la fatigue continue de baisser');
+        self::assertSame(StatutSejour::EN_TRAITEMENT, $sejour->getStatut(), 'santé 100 % + fatigue > 0 : reste en infirmerie');
+        self::assertSame(0, $service->restants($sejour, $apresSante)['sante']);
+
+        $fatigue = $hero->getFatigue();
+        $service->actualiser($sejour, $apresSante->modify('+10 seconds'), new ContexteRecuperation());
+        self::assertSame(100, $hero->getPointsDeVie());
+        self::assertLessThan($fatigue, $hero->getFatigue());
+
+        $service->actualiser($sejour, self::a(sprintf('+%d seconds', $restants['total'] - 1)), new ContexteRecuperation());
+        self::assertSame(1, $hero->getFatigue(), 'santé 100 % + fatigue 1 : reste en infirmerie');
+        self::assertSame(StatutSejour::EN_TRAITEMENT, $sejour->getStatut());
+        self::assertSame(['retabli'], $service->actualiser($sejour, self::a(sprintf('+%d seconds', $restants['total'])), new ContexteRecuperation()));
+        self::assertSame(0, $hero->getFatigue());
+    }
+
+    public function testTempsRestantSurLesDeuxComposantes(): void
+    {
+        $service = $this->service();
+        $sejour = $this->enTraitement($service, $this->hero());
+        self::assertSame(['sante' => self::DUREE, 'fatigue' => self::DUREE_FATIGUE, 'total' => self::DUREE], $service->restants($sejour, self::a('+0 sec')));
+        self::assertSame(['sante' => 430, 'fatigue' => 194, 'total' => 430], $service->restants($sejour, self::a('+100 seconds')));
+    }
+
+    public function testSanteMaximaleEtFatigue20RestentEnInfirmerie(): void
+    {
+        $service = $this->service();
+        $hero = $this->hero(100, 20);
+        $sejour = $this->enTraitement($service, $hero);
+        self::assertSame(0, $service->restants($sejour, self::a('+0 sec'))['sante']);
+        self::assertGreaterThan(0, $service->secondesRestantes($sejour, self::a('+0 sec')));
+        try {
+            $service->sortir($sejour, self::a('+1 second'));
+            self::fail('Sortie acceptée avec une fatigue de 20.');
+        } catch (InfirmerieException $e) {
+            self::assertStringContainsString('fatigue 20', $e->getMessage());
+        }
+        $service->actualiser($sejour, self::a('+15 minutes'), new ContexteRecuperation());
+        self::assertSame(StatutSejour::RETABLI, $sejour->getStatut());
+        self::assertSame([100, 0], [$hero->getPointsDeVie(), $hero->getFatigue()]);
+    }
+
+    public function testAncienSejourRetabliAvecFatigueReprendSaRecuperation(): void
+    {
+        $service = $this->service(new InfirmerieConfiguration(sortieAutomatique: true));
+        $hero = $this->hero(100, 20);
+        // Déclaré rétabli selon l'ancienne règle (fatigue ≤ 20) : interdit désormais.
+        $sejour = new SejourInfirmerie($hero, MotifInfirmerie::DECISION_MEDICALE, TypeAdmission::MANUELLE, 100, 20, self::a('-1 hour'));
+        $sejour->arriverAuQg(self::a('-1 hour'))->marquerRetabli(self::a('-30 minutes'));
+
+        self::assertFalse($service->sortieAutorisee($sejour));
+        self::assertSame([], $service->actualiser($sejour, self::a('+0 sec'), new ContexteRecuperation()), 'pas de sortie automatique');
+        self::assertSame(StatutSejour::RETABLI, $sejour->getStatut());
+        self::assertGreaterThan(self::a('+0 sec'), $sejour->getSortiePrevueLe(), 'reprise planifiée');
+
+        $service->actualiser($sejour, self::a('+15 minutes'), new ContexteRecuperation());
+        self::assertSame(StatutSejour::SORTI, $sejour->getStatut());
+        self::assertSame(0, $hero->getFatigue());
+        self::assertSame(HeroStatut::DISPONIBLE, $hero->getStatut());
     }
 
     public function testRepriseApresRedemarrageIdentiqueAuxPassagesFrequents(): void
@@ -127,15 +225,30 @@ final class HeroRecoveryServiceTest extends TestCase
         self::assertSame(StatutSejour::RETABLI, $sejour->getStatut());
         self::assertEquals(self::a('+'.self::DUREE.' seconds'), $sejour->getRetabliLe());
         self::assertSame(100.0, $sejour->getSanteActuelle());
-        self::assertSame(20.0, $sejour->getFatigueActuelle());
+        self::assertSame(0.0, $sejour->getFatigueActuelle());
         self::assertSame(100, $hero->getPointsDeVie());
-        self::assertSame(20, $hero->getFatigue());
+        self::assertSame(0, $hero->getFatigue());
         self::assertSame(0, $service->secondesRestantes($sejour, self::a('+2 hours')), 'jamais négatif');
         self::assertSame(HeroStatut::BLESSE, $hero->getStatut(), 'sortie à valider');
+        self::assertTrue($service->sortieAutorisee($sejour));
 
         // Passage suivant : ni transition ni alerte en double.
         self::assertSame([], $service->actualiser($sejour, self::a('+3 hours'), new ContexteRecuperation()));
-        self::assertCount(1, array_filter($this->persistes, static fn ($o) => $o instanceof Alerte && 'Récupération terminée' === $o->getTitre()));
+        $alertes = array_values(array_filter($this->persistes, static fn ($o) => $o instanceof Alerte && 'Récupération terminée' === $o->getTitre()));
+        self::assertCount(1, $alertes);
+        self::assertStringContainsString('100 / 100 PV, fatigue 0', $alertes[0]->getMessage());
+    }
+
+    public function testAucuneNotificationDeRetablissementAvantFatigueNulle(): void
+    {
+        $service = $this->service();
+        $sejour = $this->enTraitement($service, $this->hero(90, 80));
+        $sante = $service->restants($sejour, self::a('+0 sec'))['sante'];
+        $service->actualiser($sejour, self::a(sprintf('+%d seconds', $sante + 5)), new ContexteRecuperation());
+        $retablis = static fn (array $persistes) => \count(array_filter($persistes, static fn ($o) => $o instanceof Alerte && 'Récupération terminée' === $o->getTitre()));
+        self::assertSame(0, $retablis($this->persistes), 'santé maximale seule : aucune notification');
+        $service->actualiser($sejour, self::a('+15 minutes'), new ContexteRecuperation());
+        self::assertSame(1, $retablis($this->persistes));
     }
 
     public function testLaSanteNeBaisseJamaisEtLaFatigueNAugmenteJamais(): void
@@ -148,11 +261,11 @@ final class HeroRecoveryServiceTest extends TestCase
             $service->actualiser($sejour, self::a(sprintf('+%d seconds', $s)), new ContexteRecuperation());
             self::assertGreaterThanOrEqual($precedente[0], $sejour->getSanteActuelle());
             self::assertLessThanOrEqual($precedente[1], $sejour->getFatigueActuelle());
-            self::assertGreaterThanOrEqual(0.0, $sejour->getSanteActuelle());
+            self::assertGreaterThanOrEqual(0.0, $sejour->getFatigueActuelle());
             self::assertLessThanOrEqual(100.0, $sejour->getSanteActuelle());
             $precedente = [$sejour->getSanteActuelle(), $sejour->getFatigueActuelle()];
         }
-        self::assertSame(5, $hero->getFatigue(), 'fatigue sous la cible : jamais augmentée');
+        self::assertSame(0, $hero->getFatigue());
         self::assertSame(100, $hero->getPointsDeVie());
     }
 
