@@ -146,4 +146,12 @@ class HeroRepository extends ServiceEntityRepository
             ->orderBy('h.niveau', 'DESC')
             ->getQuery()->getResult();
     }
+
+    /** @return list<Hero> héros possédant l'aptitude (code) */
+    public function findAvecAptitude(string $code): array
+    {
+        return $this->createQueryBuilder('h')->join('h.aptitudes', 'a')
+            ->andWhere('a.code = :code')->setParameter('code', $code)
+            ->getQuery()->getResult();
+    }
 }

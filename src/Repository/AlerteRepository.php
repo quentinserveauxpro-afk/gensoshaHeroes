@@ -25,4 +25,13 @@ class AlerteRepository extends ServiceEntityRepository
             ->setMaxResults($limite)
             ->getQuery()->getResult();
     }
+
+    /** Une alerte non acquittée dont le code commence par ce préfixe existe-t-elle ? (anti-doublon) */
+    public function existeNonAcquittee(string $prefixeCode): bool
+    {
+        return (int) $this->createQueryBuilder('a')->select('COUNT(a.id)')
+            ->andWhere('a.acquittee = false')
+            ->andWhere('a.code LIKE :p')->setParameter('p', addcslashes($prefixeCode, '%_').'%')
+            ->getQuery()->getSingleScalarResult() > 0;
+    }
 }

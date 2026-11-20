@@ -182,4 +182,24 @@ class MissionSimulationState
 
         return $this;
     }
+
+    // ------------------------------------------------------------------
+    // Ajouts (additifs) — infirmerie : fatigue accumulée pendant l'engagement.
+    // ------------------------------------------------------------------
+
+    /** Fatigue décimale par héros (clé = id du héros). @var array<string, float> */
+    #[ORM\Column(type: 'json')]
+    private array $fatigues = [];
+
+    public function getFatiguePrecise(int $heroId, float $defaut): float
+    {
+        return (float) ($this->fatigues[(string) $heroId] ?? $defaut);
+    }
+
+    public function setFatiguePrecise(int $heroId, float $valeur): static
+    {
+        $this->fatigues[(string) $heroId] = round(max(0.0, min(100.0, $valeur)), 4);
+
+        return $this;
+    }
 }
