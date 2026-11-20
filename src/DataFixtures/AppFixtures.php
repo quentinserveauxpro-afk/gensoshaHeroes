@@ -12,7 +12,10 @@ use App\Entity\Mission;
 use App\Entity\ObjectifMission;
 use App\Entity\RequeteCitoyenne;
 use App\Entity\Synergie;
+use App\Entity\GeoPosition;
 use App\Entity\User;
+use App\Enum\SourceGeolocalisation;
+use App\Enum\StatutTraitement;
 use App\Entity\Villain;
 use App\Enum\AffectationStatut;
 use App\Enum\BonusOrigine;
@@ -69,6 +72,8 @@ class AppFixtures extends Fixture
         $this->chargerVillains($manager);
         $missions = $this->chargerMissions($manager, $now);
         $this->chargerRequetes($manager, $now, $missions);
+        $this->chargerComptesOperateurs($manager);
+        $this->geolocaliser($manager, $missions);
 
         $manager->flush();
     }
@@ -404,6 +409,64 @@ class AppFixtures extends Fixture
                 $alerte = new Alerte('URGENCE ALPHA', sprintf('%s • %s', $titre, $adresse), NiveauAlerte::CRITIQUE, 'REQ-PONT-B12', $now->modify($quand));
                 $alerte->setRequete($requete);
                 $manager->persist($alerte);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Ajouts — comptes typés et positions réelles (coordonnées de référence,
+    // aucune position aléatoire).
+    // ------------------------------------------------------------------
+
+    private function chargerComptesOperateurs(ObjectManager $manager): void
+    {
+        foreach ([
+            ['missions@genosha.test', 'missions-genosha', 'Sgt. L. Moreau', 'Opératrice missions', ['ROLE_MISSION_OPERATOR']],
+            ['heros@genosha.test', 'heros-genosha', 'Cpt. J. Ndiaye', 'Opérateur héros', ['ROLE_HERO_OPERATOR']],
+        ] as [$email, $mdp, $nom, $fonction, $roles]) {
+            $user = (new User())->setEmail($email)->setNom($nom)->setFonction($fonction)->setRoles($roles);
+            $user->setPassword($this->hasher->hashPassword($user, $mdp));
+            $manager->persist($user);
+        }
+    }
+
+    /** @param array<string, Mission> $missions */
+    private function geolocaliser(ObjectManager $manager, array $missions): void
+    {
+        $villes = [
+            'paris' => [48.8566, 2.3522, 'Paris', '75001'], 'lyon' => [45.7640, 4.8357, 'Lyon', '69001'],
+            'marseille' => [43.2965, 5.3698, 'Marseille', '13001'], 'lille' => [50.6292, 3.0573, 'Lille', '59000'],
+            'bordeaux' => [44.8378, -0.5792, 'Bordeaux', '33000'], 'toulouse' => [43.6047, 1.4442, 'Toulouse', '31000'],
+            'strasbourg' => [48.5734, 7.7521, 'Strasbourg', '67000'], 'nantes' => [47.2184, -1.5536, 'Nantes', '44000'],
+            'rennes' => [48.1173, -1.6778, 'Rennes', '35000'], 'nice' => [43.7102, 7.2620, 'Nice', '06000'],
+            'le-havre' => [49.4944, 0.1079, 'Le Havre', '76600'], 'grenoble' => [45.1885, 5.7245, 'Grenoble', '38000'],
+            'saint-denis-reunion' => [-20.8823, 55.4504, 'Saint-Denis (La Réunion)', '97400'],
+            'pointe-a-pitre' => [16.2411, -61.5331, 'Pointe-à-Pitre', '97110'],
+        ];
+        $position = static function (string $ville, float $dLat = 0.0, float $dLng = 0.0) use ($villes): GeoPosition {
+            [$lat, $lng, $nom, $cp] = $villes[$ville];
+
+            return GeoPosition::en($lat + $dLat, $lng + $dLng, SourceGeolocalisation::REFERENCE)->setVille($nom)->setCodePostal($cp)->setLibelle($nom);
+        };
+
+        foreach ([
+            'Apex' => ['paris'], 'Valkyrie' => ['lille'], 'Chronos' => ['grenoble'], 'Aura' => ['paris', 0.01, 0.02],
+            'Titan' => ['lyon', 0.02, -0.03], 'Shadowstep' => ['marseille', 0.01], 'Frost' => ['marseille', -0.01, 0.02],
+            'Frostbite' => ['paris', -0.02, 0.01], 'Volt' => ['strasbourg'], 'Ironhide' => ['lyon', -0.02], 'Mirage' => ['nice'],
+            'Nova' => ['paris', 0.015, -0.02], 'Bastion' => ['nantes'], 'Echo' => ['paris', -0.01, -0.01],
+        ] as $nom => $p) {
+            $this->heros[$nom]?->setGeoPosition($position(...$p));
+        }
+
+        foreach ([
+            'Opération Tempête d\'Acier' => ['le-havre'], 'Attaque du Réacteur Magna' => ['lyon', 0.05, 0.08],
+            'Prise d\'otages Métro Ligne 4' => ['marseille', 0.005, 0.01], 'Incendie Chimique Docks Est' => ['bordeaux'],
+            'Neutralisation du Titan d\'Or — Secteur Industriel 04' => ['toulouse'], 'Braquage Banque Centrale' => ['paris', 0.01, 0.0],
+            'Démantèlement Guilde Froid-Zéro' => ['rennes'], 'Évasion Prison Bastille-9' => ['pointe-a-pitre'],
+            'Patrouille Couloir Aérien Nord' => ['saint-denis-reunion'],
+        ] as $nom => $p) {
+            if (isset($missions[$nom])) {
+                $missions[$nom]->setGeoPosition($position(...$p));
             }
         }
     }
