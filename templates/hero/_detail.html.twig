@@ -111,6 +111,8 @@
         </section>
     </div>
 
+    {{ include('hero/_infirmerie.html.twig', {hero: hero}) }}
+
     <section class="card row" aria-label="Actions">
         {% if hero.disponible %}
             <a class="btn btn--dark" href="{{ path('app_squad_builder') }}">{{ include('components/_icon.html.twig', {name: 'group_add'}) }} Assigner à une escouade</a>

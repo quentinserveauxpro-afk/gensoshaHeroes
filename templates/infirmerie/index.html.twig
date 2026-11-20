@@ -1,0 +1,90 @@
+{% extends 'base.html.twig' %}
+{% block title %}Infirmerie{% endblock %}
+{% block content %}
+<div class="stack" data-controller="infirmary-live">
+    <section class="card card--tinted stack-sm" aria-labelledby="inf-titre">
+        <div class="row">
+            <span class="kpi__icon" style="width:48px;height:48px">{{ include('components/_icon.html.twig', {name: 'local_hospital'}) }}</span>
+            <div style="flex:1">
+                <span class="label-sm">QG Genosha • Centre médical opérationnel</span>
+                <h1 id="inf-titre" class="headline-md">Infirmerie & Récupération des héros</h1>
+            </div>
+            {{ include('components/_realtime.html.twig') }}
+        </div>
+        <p class="label-md muted" style="margin:0">
+            Rapatriement automatique : santé ≤ {{ config.santeCritique }} % ou fatigue ≥ {{ config.fatigueCritique }} %.
+            Sortie : santé ≥ {{ config.santeSortie }} % et fatigue ≤ {{ config.fatigueSortie }} %
+            ({{ config.sortieAutomatique ? 'sortie automatique' : 'validation par un opérateur héros' }}).
+            Valeurs calculées par le serveur ; personnages fictifs.
+        </p>
+        <p class="label-md" role="status" data-infirmary-live-target="annonce" hidden></p>
+    </section>
+
+    <div class="grid grid-3 infirmary-kpis">
+        <div class="card kpi"><span class="label-sm">En retour vers le QG</span><span class="kpi__value" data-kpi="retours">{{ indicateurs.retours }}</span></div>
+        <div class="card kpi"><span class="label-sm">En traitement</span><span class="kpi__value text-danger" data-kpi="traitements">{{ indicateurs.traitements }}</span></div>
+        <div class="card kpi"><span class="label-sm">Rétablis (sortie à valider)</span><span class="kpi__value" data-kpi="retablis">{{ indicateurs.retablis }}</span></div>
+        <div class="card kpi"><span class="label-sm">Capacité totale</span><span class="kpi__value">{{ indicateurs.capacite }}</span><span class="label-md muted">lits</span></div>
+        <div class="card kpi"><span class="label-sm">Lits disponibles</span><span class="kpi__value" data-kpi="litsDisponibles">{{ indicateurs.litsDisponibles }}</span>
+            <span class="label-md text-danger" data-kpi="complet" {% if indicateurs.litsDisponibles > 0 %}hidden{% endif %}>● Infirmerie complète</span></div>
+        <div class="card kpi"><span class="label-sm">Temps moyen de récupération</span><span class="kpi__value" style="font-size:24px" data-kpi="dureeMoyenne">{{ indicateurs.dureeMoyenne|duree_lisible }}</span></div>
+    </div>
+
+    <div class="card stack-sm">
+        <nav class="chip-group" aria-label="Filtrer les séjours">
+            {% set libelles = {tous: 'Tous', retour: 'En retour', traitement: 'En traitement', retablis: 'Rétablis', critique: 'Santé critique', epuisement: 'Épuisement'} %}
+            {% for cle, libelle in libelles %}
+                <a href="{{ path('app_infirmerie', {filtre: cle, rang: filtres.rang, depuis: filtres.depuis}|filter(v => v)) }}" {% if filtres.filtre == cle %}aria-current="true"{% endif %}>{{ libelle }} ({{ comptes[cle] ?? 0 }})</a>
+            {% endfor %}
+        </nav>
+        <form method="get" class="row filters" style="justify-content:flex-end;flex-wrap:wrap">
+            <input type="hidden" name="filtre" value="{{ filtres.filtre }}">
+            <label for="f-rang" class="label-md">Rang</label>
+            <select id="f-rang" name="rang" style="width:auto">
+                <option value="">Tous</option>
+                {% for r in rangs %}<option value="{{ r }}" {% if filtres.rang == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+            </select>
+            <label for="f-depuis" class="label-md">Admis depuis le</label>
+            <input type="date" id="f-depuis" name="depuis" value="{{ filtres.depuis }}" style="width:auto">
+            <button type="submit" class="btn btn--soft btn--sm">Filtrer</button>
+        </form>
+    </div>
+
+    <section aria-labelledby="inf-actifs">
+        <h2 id="inf-actifs" class="label-sm">Héros pris en charge ({{ sejours|length }})</h2>
+        <div class="infirmary-grid">
+            {% for sejour in sejours %}
+                {{ include('components/_infirmary_card.html.twig', {sejour: sejour, d: donnees[sejour.id], peut_sortir: is_granted('INFIRMERIE_CONSULTER')}) }}
+            {% else %}
+                <p class="card muted" data-test="aucun-sejour">Aucun héros ne correspond : l'infirmerie est {{ indicateurs.occupes == 0 ? 'vide' : 'occupée par des héros hors de ce filtre' }}.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="card stack-sm" aria-labelledby="inf-historique">
+        <h2 id="inf-historique" class="headline-md card__title">{{ include('components/_icon.html.twig', {name: 'history'}) }} Historique des séjours terminés</h2>
+        {% if historique is empty %}
+            <p class="muted" style="margin:0">Aucun séjour terminé.</p>
+        {% else %}
+            <div class="table-wrap">
+                <table class="table">
+                    <thead><tr><th scope="col">Héros</th><th scope="col">Motif</th><th scope="col">Admission</th><th scope="col">Sortie</th><th scope="col">Traitement</th><th scope="col">Mission</th><th scope="col">Statut</th></tr></thead>
+                    <tbody>
+                        {% for s in historique %}
+                            <tr>
+                                <td><a href="{{ path('app_hero_show', {id: s.hero.id}) }}">{{ s.hero.nom }}</a></td>
+                                <td>{{ s.motif.label }}<br><span class="label-md muted">{{ s.typeAdmission.label }}</span></td>
+                                <td>{{ s.admisLe|date('d/m/Y H:i') }}</td>
+                                <td>{{ s.sortiLe ? s.sortiLe|date('d/m/Y H:i') : '—' }}</td>
+                                <td>{{ s.dureeTraitement|duree_lisible }}</td>
+                                <td>{{ s.mission ? s.mission.nom|tronquer(24) : '—' }}</td>
+                                <td>{{ include('components/_status_badge.html.twig', {statut: s.statut}) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

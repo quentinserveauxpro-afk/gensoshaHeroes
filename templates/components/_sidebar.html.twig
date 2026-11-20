@@ -5,6 +5,7 @@
     {route: 'app_squad_builder', label: 'Squad Builder', icon: 'groups', actif: route starts with 'app_squad_builder', visible: is_granted('ROLE_HERO_OPERATOR')},
     {route: 'app_hero_index', label: 'Roster des Héros', icon: 'shield_person', actif: route starts with 'app_hero', visible: true},
     {route: 'app_mission_index', label: 'Missions', icon: 'flag', actif: route starts with 'app_mission', visible: true},
+    {route: 'app_infirmerie', label: 'Infirmerie', icon: 'local_hospital', actif: route starts with 'app_infirmerie', visible: is_granted('INFIRMERIE_CONSULTER')},
     {route: 'app_requete_index', label: 'Requêtes Citoyennes', icon: 'sensors', actif: route starts with 'app_requete', visible: is_granted('REQUETE_CONSULTER')},
 ] %}
 <aside class="sidebar" aria-label="Navigation principale">

@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Realtime\EtatTactiqueProvider;
+use App\Security\Voter\InfirmerieVoter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -34,7 +35,7 @@ final class TempsReelController extends AbstractController
     #[Route('/etat', name: 'app_api_temps_reel_etat', methods: ['GET'])]
     public function etat(EtatTactiqueProvider $provider): JsonResponse
     {
-        $response = $this->json($provider->instantane() + ['intervalle' => self::INTERVALLE]);
+        $response = $this->json($this->filtrer($provider->instantane(), $this->isGranted(InfirmerieVoter::CONSULTER)) + ['intervalle' => self::INTERVALLE]);
         $response->headers->set('Cache-Control', 'no-store');
 
         return $response;
@@ -51,12 +52,13 @@ final class TempsReelController extends AbstractController
             $request->getSession()->save();
         }
 
-        $response = new StreamedResponse(static function () use ($provider, $em, $duree): void {
+        $infirmerie = $this->isGranted(InfirmerieVoter::CONSULTER);
+        $response = new StreamedResponse(static function () use ($provider, $em, $duree, $infirmerie): void {
             $fin = microtime(true) + max(0, $duree);
             echo "retry: 3000\n\n";
             do {
                 $em->clear();
-                $donnees = $provider->instantane() + ['intervalle' => self::INTERVALLE];
+                $donnees = self::filtrer($provider->instantane(), $infirmerie) + ['intervalle' => self::INTERVALLE];
                 echo 'id: '.time()."\n";
                 echo "event: etat\n";
                 echo 'data: '.json_encode($donnees, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE)."\n\n";
@@ -75,5 +77,22 @@ final class TempsReelController extends AbstractController
         $response->headers->set('X-Accel-Buffering', 'no');
 
         return $response;
+    }
+
+    /**
+     * Le détail de l'infirmerie n'est diffusé qu'aux opérateurs héros ; les opérateurs missions
+     * conservent l'état général de chaque héros (statut, position, rapatriement en cours).
+     *
+     * @param array<string, mixed> $donnees
+     *
+     * @return array<string, mixed>
+     */
+    private static function filtrer(array $donnees, bool $infirmerie): array
+    {
+        if (!$infirmerie) {
+            unset($donnees['infirmerie']);
+        }
+
+        return $donnees;
     }
 }

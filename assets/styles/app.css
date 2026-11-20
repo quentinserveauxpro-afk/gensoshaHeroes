@@ -489,3 +489,21 @@ fieldset { border: 0; padding: 0; margin: 0; }
 
 .legacy-grid summary { cursor: pointer; display: flex; gap: .4rem; align-items: center; }
 .legacy-grid[open] .map-wrap { margin-top: 1rem; }
+
+/* ------------------------------------------------------------------
+   Infirmerie
+   ------------------------------------------------------------------ */
+.infirmary-grid { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); margin-top: .75rem; }
+.infirmary-card { border-top: 4px solid var(--outline); }
+.infirmary-card[data-statut="RETOUR_QG"], .infirmary-card[data-statut="RETOUR_EN_ATTENTE"] { border-top-color: var(--amber); }
+.infirmary-card[data-statut="EN_TRAITEMENT"] { border-top-color: var(--error); }
+.infirmary-card[data-statut="RETABLI"] { border-top-color: var(--primary-container); }
+.infirmary-card__head { align-items: flex-start; flex-wrap: nowrap; }
+.infirmary-card__head h3 a { color: inherit; text-decoration: none; text-transform: uppercase; font-weight: 800; }
+.infirmary-gauge .gauge__fill, .infirmary-card .gauge__fill { transition: width .8s ease, background-color .4s ease; }
+.infirmary-kpis .kpi__value { font-size: 30px; }
+.modal { border: none; border-radius: var(--r-lg, 16px); padding: 0; max-width: min(36rem, calc(100vw - 2rem)); width: 100%; box-shadow: var(--shadow-2); background: var(--surface, #fff); color: inherit; }
+.modal::backdrop { background: rgba(20, 30, 15, .45); }
+.modal__body { padding: 1.5rem; }
+@media (prefers-reduced-motion: reduce) { .infirmary-card .gauge__fill { transition: none; } }
+@media (max-width: 720px) { .infirmary-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -1,0 +1,61 @@
+{# Carte d'un héros pris en charge par l'infirmerie (actualisée en direct par infirmary-live).
+   Paramètres : sejour (SejourInfirmerie), d (données projetées : InfirmerieEtatProvider::sejour), peut_sortir (bool) #}
+{% set hero = sejour.hero %}
+{% set ton_sante = d.sante <= 20 ? 'danger' : (d.sante <= 50 ? 'warn' : 'ok') %}
+{% set ton_fatigue = d.fatigue >= 90 ? 'danger' : (d.fatigue >= 50 ? 'warn' : 'ok') %}
+<article class="card infirmary-card stack-sm" data-sejour="{{ sejour.id }}" data-statut="{{ d.statut }}" aria-labelledby="sej-{{ sejour.id }}">
+    <header class="row infirmary-card__head">
+        {{ include('components/_hero_avatar.html.twig', {hero: hero, size: 56, square: true}) }}
+        <div style="flex:1;min-width:0">
+            <h3 id="sej-{{ sejour.id }}" class="headline-sm" style="margin:0"><a href="{{ d.url }}">{{ hero.nom }}</a></h3>
+            <span class="label-md muted">Rang {{ hero.rang ?? '—' }} • {{ d.typeAdmission }}</span>
+        </div>
+        <span class="badge badge--{{ d.tone }}" data-champ="statut" data-tone="{{ d.tone }}">{{ d.statutLabel }}</span>
+    </header>
+
+    <div class="row">
+        {{ include('components/_badge.html.twig', {label: d.motifLabel, tone: d.motif == 'SANTE_CRITIQUE' ? 'danger' : (d.motif == 'EPUISEMENT' ? 'warn' : 'muted')}) }}
+        <span class="badge badge--danger" data-champ="alerte-sante" {% if not d.santeCritique %}hidden{% endif %}>Santé critique</span>
+        <span class="badge badge--warn" data-champ="alerte-fatigue" {% if not d.epuise %}hidden{% endif %}>Épuisement</span>
+    </div>
+
+    <div class="gauge gauge--{{ ton_sante }} infirmary-gauge" data-champ="jauge-sante">
+        <div class="gauge__head"><span>{{ include('components/_icon.html.twig', {name: 'favorite'}) }} Santé</span>
+            <span data-champ="sante-texte">{{ d.pv }} / {{ d.pvMax }} PV ({{ d.sante }} %)</span></div>
+        <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ d.sante }}" aria-label="Santé de {{ hero.nom }}" data-champ="sante-barre">
+            <div class="gauge__fill" style="width: {{ d.sante }}%"></div>
+        </div>
+    </div>
+    <div class="gauge gauge--{{ ton_fatigue }} gauge--thin infirmary-gauge" data-champ="jauge-fatigue">
+        <div class="gauge__head"><span>{{ include('components/_icon.html.twig', {name: 'battery_alert'}) }} Fatigue</span>
+            <span data-champ="fatigue-texte">{{ d.fatigue }} %</span></div>
+        <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ d.fatigue }}" aria-label="Fatigue de {{ hero.nom }}" data-champ="fatigue-barre">
+            <div class="gauge__fill" style="width: {{ d.fatigue }}%"></div>
+        </div>
+    </div>
+
+    <dl class="metrics">
+        <dt>Admission</dt><dd><time datetime="{{ d.admisLe }}">{{ sejour.admisLe|date('d/m H:i') }}</time></dd>
+        <dt data-champ="restant-libelle">{{ d.statut == 'RETOUR_QG' ? 'Arrivée au QG' : 'Rétablissement' }}</dt>
+        <dd data-champ="restant">{{ d.statut == 'RETABLI' ? 'Atteint' : (d.secondesRestantes is null ? '—' : 'dans ' ~ d.secondesRestantes|duree_lisible) }}</dd>
+        <dt>Mission d'origine</dt><dd>{% if d.mission %}<a href="{{ d.mission.url }}">{{ d.mission.nom|tronquer(28) }}</a>{% else %}—{% endif %}</dd>
+        <dt>Récupération</dt><dd data-champ="taux">{{ d.tauxSanteHeure }} PV/h • −{{ d.tauxFatigueHeure }} fatigue/h</dd>
+    </dl>
+
+    <div class="panel stack-sm" data-champ="retour" {% if not d.retour %}hidden{% endif %}>
+        <span class="label-sm">{{ include('components/_icon.html.twig', {name: 'route'}) }} Retour vers le QG</span>
+        <div class="gauge gauge--warn gauge--thin">
+            <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ d.retour.progression ?? 0 }}" aria-label="Progression du retour de {{ hero.nom }}" data-champ="retour-barre">
+                <div class="gauge__fill" style="width: {{ d.retour.progression ?? 0 }}%"></div>
+            </div>
+        </div>
+        <span class="label-md" data-champ="retour-texte">{% if d.retour %}{{ d.retour.distanceRestanteKm }} km restants • position {{ d.retour.position.lat|number_format(4, ',') }}, {{ d.retour.position.lng|number_format(4, ',') }}{% endif %}</span>
+    </div>
+
+    {% if peut_sortir %}
+        <form method="post" action="{{ path('app_infirmerie_sortie', {id: sejour.id}) }}" data-champ="sortie" {% if d.statut != 'RETABLI' %}hidden{% endif %}>
+            <input type="hidden" name="_token" value="{{ csrf_token('sortie-infirmerie' ~ sejour.id) }}">
+            <button type="submit" class="btn btn--dark btn--sm">{{ include('components/_icon.html.twig', {name: 'logout'}) }} Valider la sortie</button>
+        </form>
+    {% endif %}
+</article>

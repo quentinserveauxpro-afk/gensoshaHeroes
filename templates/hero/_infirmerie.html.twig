@@ -1,0 +1,73 @@
+{# Bloc infirmerie de la fiche héros. Paramètre : hero.
+   Affichage seulement : droits revérifiés par InfirmerieVoter dans le contrôleur. #}
+{% set sejour = sejour_actif(hero) %}
+{% set etat_medical = etat_medical(hero) %}
+{% set peut_admettre = is_granted('INFIRMERIE_ADMETTRE', hero) %}
+<section class="card stack-sm infirmary-hero" aria-labelledby="inf-titre-{{ hero.id }}" data-controller="dialog">
+    <h2 id="inf-titre-{{ hero.id }}" class="headline-md card__title">{{ include('components/_icon.html.twig', {name: 'medical_services'}) }} Suivi médical</h2>
+    {% if sejour %}
+        <p class="row" style="margin:0">
+            {{ include('components/_status_badge.html.twig', {statut: sejour.statut}) }}
+            <span>Pris en charge depuis le {{ sejour.admisLe|date('d/m/Y à H:i') }} — {{ sejour.motif.label|lower }}{% if sejour.mission %}, depuis « {{ sejour.mission.nom }} »{% endif %}.</span>
+        </p>
+        <p class="label-md muted" style="margin:0">Indisponible pour toute affectation jusqu'à sa sortie de l'infirmerie.</p>
+        {% if is_granted('INFIRMERIE_CONSULTER') %}
+            <a class="btn btn--soft btn--sm" href="{{ path('app_infirmerie') }}">{{ include('components/_icon.html.twig', {name: 'local_hospital'}) }} Voir l'infirmerie</a>
+        {% endif %}
+    {% else %}
+        <p style="margin:0">
+            {% if etat_medical %}{{ include('components/_badge.html.twig', {label: etat_medical, tone: 'danger', dot: true}) }} Rapatriement automatique au prochain passage du moteur.
+            {% else %}<span class="muted">Aucun séjour en cours.</span>{% endif %}
+        </p>
+        {% if is_granted('INFIRMERIE_CONSULTER') %}
+            <div>
+                <button type="button" class="btn btn--secondary" data-action="dialog#ouvrir" {% if not peut_admettre %}disabled{% endif %} data-test="envoyer-infirmerie">
+                    {{ include('components/_icon.html.twig', {name: 'local_hospital'}) }} Envoyer à l'infirmerie
+                </button>
+            </div>
+            {% set csq = infirmerie_consequences(hero) %}
+            {% set pct = hero.pointsDeVieMaximum > 0 ? (hero.pointsDeVie / hero.pointsDeVieMaximum * 100)|round(0, 'floor') : 0 %}
+            <dialog class="modal" data-dialog-target="dialog" data-action="close->dialog#fermeture click->dialog#clicFond" aria-labelledby="inf-dlg-titre-{{ hero.id }}">
+                <form method="post" action="{{ path('app_hero_infirmerie', {id: hero.id}) }}" class="stack-sm modal__body">
+                    <h2 id="inf-dlg-titre-{{ hero.id }}" class="headline-md card__title">{{ include('components/_icon.html.twig', {name: 'local_hospital'}) }} Envoyer {{ hero.nom }} à l'infirmerie</h2>
+                    <div class="row">
+                        {{ include('components/_hero_avatar.html.twig', {hero: hero, size: 48}) }}
+                        <dl class="metrics" style="flex:1">
+                            <dt>Santé</dt><dd>{{ hero.pointsDeVie }} / {{ hero.pointsDeVieMaximum }} PV ({{ pct }} %)</dd>
+                            <dt>Fatigue</dt><dd>{{ hero.fatigue }} %</dd>
+                            <dt>Mission active</dt><dd>{{ csq.mission ? csq.mission.nom : 'Aucune' }}</dd>
+                        </dl>
+                    </div>
+                    <label for="inf-motif-{{ hero.id }}">Motif médical <span aria-hidden="true">*</span></label>
+                    <select id="inf-motif-{{ hero.id }}" name="motif" required>
+                        <option value="">— Choisir un motif —</option>
+                        {% for m in infirmerie_motifs() %}<option value="{{ m.value }}">{{ m.label }}</option>{% endfor %}
+                    </select>
+                    <label for="inf-notes-{{ hero.id }}">Note (facultative, données fictives uniquement)</label>
+                    <textarea id="inf-notes-{{ hero.id }}" name="notes" rows="2" maxlength="2000"></textarea>
+                    <div class="panel stack-sm" aria-label="Conséquences">
+                        <span class="label-sm">Conséquences</span>
+                        <ul class="warnings">
+                            {% if csq.aucuneMission %}
+                                <li>{{ hero.nom }} devient indisponible pour tout déploiement jusqu'à sa sortie.</li>
+                            {% else %}
+                                <li>Retrait de « {{ csq.mission.nom }} » : l'affectation est conservée dans l'historique, sa contribution s'arrête.</li>
+                                <li>Taux de réussite estimé : {{ csq.tauxAvant }} % → {{ csq.tauxApres }} %.</li>
+                                {% if csq.equipeVide %}<li class="text-danger">Plus aucun héros engagé : la mission risque d'échouer.</li>
+                                {% else %}<li>Équipe restante : {{ csq.equipeRestante|join(', ') }}.</li>{% endif %}
+                                {% for s in csq.synergiesPerdues %}<li>Synergie perdue : {{ s }}.</li>{% endfor %}
+                                {% for a in csq.aptitudesManquantes %}<li class="text-danger">Compétence obligatoire manquante : {{ a }}.</li>{% endfor %}
+                            {% endif %}
+                            <li>Retour vers le QG puis traitement ; aucune réaffectation automatique après la sortie.</li>
+                        </ul>
+                    </div>
+                    <input type="hidden" name="_token" value="{{ csrf_token('infirmerie-hero' ~ hero.id) }}">
+                    <div class="row" style="justify-content:flex-end">
+                        <button type="button" class="btn btn--soft" data-action="dialog#fermer">Annuler</button>
+                        <button type="submit" class="btn btn--dark">{{ include('components/_icon.html.twig', {name: 'check'}) }} Confirmer l'admission</button>
+                    </div>
+                </form>
+            </dialog>
+        {% endif %}
+    {% endif %}
+</section>

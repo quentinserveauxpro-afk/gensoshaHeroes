@@ -8,7 +8,10 @@ use App\Entity\Mission;
 use App\Entity\MissionSimulationState;
 use App\Enum\MissionStatut;
 use App\Geo\Coordonnees;
+use App\Entity\SejourInfirmerie;
 use App\Geo\DistanceCalculator;
+use App\Infirmerie\InfirmerieEtatProvider;
+use App\Repository\SejourInfirmerieRepository;
 use App\Movement\HeroMovementService;
 use App\Repository\AlerteRepository;
 use App\Repository\HeroMovementRepository;
@@ -48,6 +51,8 @@ final class EtatTactiqueProvider
         private readonly MissionSimulationService $simulation,
         private readonly UrlGeneratorInterface $urls,
         private readonly ClockInterface $clock,
+        private readonly ?InfirmerieEtatProvider $infirmerie = null,
+        private readonly ?SejourInfirmerieRepository $sejours = null,
     ) {
     }
 
@@ -59,11 +64,17 @@ final class EtatTactiqueProvider
         $heros = $this->heroes->findAll();
         $mouvements = $this->mouvements->indexerDerniersParHero(array_map(static fn (Hero $h) => (int) $h->getId(), $heros));
         $etats = $this->etats->indexerParMission(array_map(static fn (Mission $m) => (int) $m->getId(), $missions));
+        $sejours = $this->sejours?->findActifs() ?? [];
+        $sejourParHero = [];
+        foreach ($sejours as $sejour) {
+            $sejourParHero[$sejour->getHero()->getId()] = $sejour;
+        }
 
         return [
             'genereLe' => $now->format(\DATE_ATOM),
             'trajet' => 'Simulation en ligne droite (grand cercle), pas un itinéraire routier.',
-            'heros' => array_values(array_filter(array_map(fn (Hero $h) => $this->hero($h, $mouvements[$h->getId()] ?? null, $now), $heros))),
+            'heros' => array_values(array_filter(array_map(fn (Hero $h) => $this->hero($h, $mouvements[$h->getId()] ?? null, $now, $sejourParHero[$h->getId()] ?? null), $heros))),
+            'infirmerie' => $this->infirmerie?->instantane($now, $sejours),
             'missions' => array_map(fn (Mission $m) => $this->mission($m, $etats[$m->getId()] ?? null, $now), $missions),
             'alertes' => array_map(static fn ($a) => [
                 'id' => $a->getId(),
@@ -79,7 +90,7 @@ final class EtatTactiqueProvider
     }
 
     /** @return array<string, mixed>|null null si le héros n'a aucune position connue */
-    private function hero(Hero $hero, ?HeroMovement $mouvement, \DateTimeImmutable $now): ?array
+    private function hero(Hero $hero, ?HeroMovement $mouvement, \DateTimeImmutable $now, ?SejourInfirmerie $sejour = null): ?array
     {
         $affectation = $hero->getAffectationActive();
         $mission = $affectation?->getMission();
@@ -102,6 +113,12 @@ final class EtatTactiqueProvider
                 'depart' => $mouvement->getDepart()->toArray(),
                 'arrivee' => $mouvement->getArrivee()->toArray(),
             ];
+        }
+        // Rapatriement : le héros est affiché sur son trajet de retour, destination le QG.
+        $retour = null !== $sejour ? $this->infirmerie?->retour($sejour, $now) : null;
+        if (null !== $retour) {
+            $position = \App\Geo\Coordonnees::depuisDecimaux($retour['position']['lat'], $retour['position']['lng']) ?? $position;
+            $deplacement = $retour;
         }
         if (null === $position) {
             return null;
@@ -130,6 +147,11 @@ final class EtatTactiqueProvider
             'affectation' => $affectation?->getStatut()->label(),
             'distanceMissionKm' => $distanceMission,
             'deplacement' => $deplacement,
+            'infirmerie' => null === $sejour ? null : [
+                'statut' => $sejour->getStatut()->value,
+                'statutLabel' => $sejour->getStatut()->label(),
+                'motif' => $sejour->getMotif()->label(),
+            ],
             'url' => $this->urls->generate('app_hero_show', ['id' => $hero->getId()]),
         ];
     }
