@@ -5,6 +5,7 @@ namespace App\Security\Voter;
 use App\Entity\Hero;
 use App\Entity\SejourInfirmerie;
 use App\Enum\StatutSejour;
+use App\Infirmerie\HeroMedicalEvaluationService;
 use App\Repository\SejourInfirmerieRepository;
 use App\Security\RoleCatalog;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -56,7 +57,9 @@ final class InfirmerieVoter extends Voter
         return match ($attribute) {
             self::CONSULTER => true,
             self::ADMETTRE => null === $this->sejours->findActifPourHero($subject),
-            self::SORTIE => StatutSejour::RETABLI === $subject->getStatut(),
+            // Sortie : séjour rétabli ET points de vie == maximum ET fatigue == 0.
+            self::SORTIE => StatutSejour::RETABLI === $subject->getStatut()
+                && HeroMedicalEvaluationService::estRetabli($subject->getHero()->getPointsDeVie(), $subject->getHero()->getPointsDeVieMaximum(), $subject->getHero()->getFatigue()),
             default => false,
         };
     }

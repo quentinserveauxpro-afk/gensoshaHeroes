@@ -124,7 +124,9 @@ final class InfirmerieController extends AbstractController
             return $retour;
         }
         if (!$this->isGranted(InfirmerieVoter::SORTIE, $sejour)) {
-            $this->addFlash('danger', sprintf('%s n\'est pas encore rétabli : sortie impossible.', $sejour->getHero()->getNom()));
+            $hero = $sejour->getHero();
+            $this->addFlash('danger', sprintf('%s n\'est pas encore totalement rétabli (%d / %d PV, fatigue %d) : la sortie exige la santé au maximum et une fatigue à 0.',
+                $hero->getNom(), (int) $hero->getPointsDeVie(), $hero->getPointsDeVieMaximum(), $hero->getFatigue()));
 
             return $retour;
         }
