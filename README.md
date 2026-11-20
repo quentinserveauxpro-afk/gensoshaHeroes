@@ -31,7 +31,8 @@ Rendu côté serveur (Symfony + Twig), sans API publique.
 | Roster des héros | Liste paginée avec recherche, filtre par rôle et tri, fiche détaillée avec radar Chart.js, bonus actifs, historique des missions, synergies |
 | Squad Builder | Composition d'équipe, pronostic de réussite recalculé à chaque modification, suggestions classées, validation serveur, déploiement transactionnel |
 | Administration | Comptes opérateurs typés (missions / héros / admin), activation, réinitialisation du mot de passe ; vilains |
-| Alertes | Générées automatiquement pour les requêtes urgentes et les missions critiques, acquittement |
+| Infirmerie | Rapatriement automatique (santé ≤ 20 %, fatigue ≥ 90 %) ou manuel, retour au QG sur la carte, récupération calculée côté serveur, sortie validée, héros indisponibles dans le Squad Builder |
+| Alertes | Générées automatiquement pour les requêtes urgentes, les missions critiques et les événements médicaux (sans doublon), acquittement |
 
 Le détail, avec l'état de chaque fonctionnalité, est dans [docs/features.md](docs/features.md).
 
@@ -84,6 +85,9 @@ Pour que les héros se déplacent et que les missions évoluent, lancez le moteu
 php bin/console app:missions:update --watch      # un passage toutes les 3 s (Ctrl+C pour arrêter)
 ```
 
+Ce worker exécute aussi le passage de l'infirmerie (`app:infirmary:update`). Après une mise à jour
+du code ou du schéma, arrêtez-le et relancez-le.
+
 ## Données de démonstration
 
 `php bin/console doctrine:fixtures:load -n` **vide la base**, puis charge 14 héros, 10 missions,
@@ -124,6 +128,7 @@ MySQL de test, décrite dans [docs/testing.md](docs/testing.md).
 | [routes.md](docs/routes.md) | Table des routes |
 | [commands.md](docs/commands.md) | Commandes utiles |
 | [contributing.md](docs/contributing.md) | Règles de contribution, Conventional Commits |
+| [infirmerie.md](docs/infirmerie.md) | Infirmerie : seuils, rapatriement, récupération, commande périodique, droits |
 | [carte-temps-reel.md](docs/carte-temps-reel.md) | Carte réelle, déplacements, moteur de simulation, temps réel, demandes publiques, rôles opérateurs |
 
 ## État d'avancement
