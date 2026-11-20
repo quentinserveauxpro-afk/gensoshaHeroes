@@ -108,9 +108,10 @@ Ces identifiants sont réservés à la démonstration.
 
 ```bash
 php bin/phpunit
+node --test tests/js/*.test.mjs   # boucle de rafraîchissement des missions (sans navigateur)
 ```
 
-Il y a 158 tests (unitaires, d'intégration et fonctionnels) et ils passent tous. Ils exigent une base
+Il y a 238 tests PHP (unitaires, d'intégration et fonctionnels) et 5 tests JavaScript ; ils passent tous. Ils exigent une base
 MySQL de test, décrite dans [docs/testing.md](docs/testing.md).
 
 ## Documentation

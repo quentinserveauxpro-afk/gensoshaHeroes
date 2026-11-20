@@ -96,6 +96,44 @@ périodiques.
   santé, objectifs, taux, phase, menace, journal et annonces d'arrivée (zone `aria-live`). Une
   version texte de la carte est fournie.
 
+### Rafraîchissement automatique des fiches de mission
+
+Le flux SSE ne diffuse que les missions actives de la carte. Les fiches de la page Missions (y compris
+les missions closes et paginées) et la fiche de la mission sélectionnée sur la carte sont donc
+actualisées par une requête groupée dédiée, en lecture seule :
+
+| Point d'accès | Rôle |
+|---|---|
+| `GET /missions/live-status?ids=12,13` | État de toutes les fiches visibles, en une requête (50 missions au plus ; identifiants filtrés côté serveur) |
+| `GET /missions/{id}/live-status` | État de la seule mission sélectionnée sur la carte (404 si elle n'existe pas) |
+
+- **Contenu :** `serverTime` et, par mission, `status`, `progress`, `successRate`,
+  `remainingSeconds`, `deadline`, `updatedAt`, `objectives` (`id`, `progress`, `completed`),
+  `heroes` (`health`, `maxHealth`, `fatigue`, `critical`), `alerts` (titre et niveau) et `position`.
+  Les pourcentages sont bornés à [0, 100]. Aucune description, image, statistique ni message
+  d'alerte n'est renvoyé.
+- **Serveur :** `MissionLiveStatusProvider` lit l'état calculé par le moteur, sans rien simuler.
+  Il fait trois requêtes quel que soit le nombre de missions : missions avec objectifs, affectations,
+  héros et position en une jointure, puis états de simulation, puis alertes. Les réponses portent
+  `Cache-Control: no-store`. Les droits sont ceux de la consultation des missions (`ROLE_STAFF`).
+- **Navigateur :** le contrôleur Stimulus `mission-status` (une instance par page) s'appuie sur
+  `assets/lib/live_poller.js`, qui garantit :
+  - une seule boucle de 3 s et l'annulation de la requête précédente (`AbortController`) ;
+  - l'arrêt quand l'onglet est masqué et la reprise immédiate au retour ;
+  - aucun appel sans fiche à actualiser ;
+  - un délai progressif après des erreurs (6 s, 12 s… jusqu'à 30 s).
+- **Mise à jour du DOM :** seules les valeurs modifiées sont réécrites, à partir des attributs
+  `data-mission-id`, `data-mission-status`, `data-mission-progress`, `data-mission-success-rate`,
+  `data-mission-timer`, `data-objective-id`, `data-hero-id`, `data-hero-health` et
+  `data-hero-fatigue`. La carte reçoit les mêmes valeurs (événement `genosha:missions-live`) pour
+  déplacer le marqueur et changer son apparence.
+- **Comptes à rebours :** ils décomptent localement et se recalent sur `remainingSeconds` à chaque
+  réponse. À l'échéance ils affichent `00:00`, puis « Mission terminée » (ou « échouée »,
+  « annulée ») seulement quand le serveur confirme la clôture.
+- **Annonces :** la zone `aria-live="polite"` n'annonce que la fin ou l'échec d'une mission, un
+  objectif atteint et un héros passé en état critique.
+- **Tests du module JavaScript :** `node --test tests/js/*.test.mjs` (Node 18 ou plus récent).
+
 ## 5. Demande d'intervention publique
 
 `/demande-intervention` (sans compte) recueille : titre, description, 8 catégories, urgence
