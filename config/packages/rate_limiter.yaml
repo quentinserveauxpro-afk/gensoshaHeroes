@@ -1,0 +1,20 @@
+framework:
+    rate_limiter:
+        # Formulaire public /demande-intervention : 5 envois par adresse IP sur 15 minutes.
+        demande_intervention:
+            policy: sliding_window
+            limit: 5
+            interval: '15 minutes'
+        # Politique Nominatim : 1 requête par seconde au maximum pour toute l'application.
+        geocodage_nominatim:
+            policy: token_bucket
+            limit: 1
+            rate: { interval: '1 second', amount: 1 }
+
+when@test:
+    framework:
+        cache:
+            pools:
+                # Compteurs isolés de l'environnement de dev ; purgés par les tests qui en dépendent.
+                cache.rate_limiter:
+                    adapter: cache.adapter.filesystem
