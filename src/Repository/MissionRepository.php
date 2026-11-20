@@ -106,4 +106,31 @@ class MissionRepository extends ServiceEntityRepository
 
         return $result;
     }
+
+    /**
+     * Missions du suivi en direct, avec objectifs, affectations, héros et position chargés
+     * en une seule requête (aucune requête supplémentaire par mission ni par héros).
+     *
+     * @param list<int> $ids
+     *
+     * @return list<Mission>
+     */
+    public function chargerPourSuiviDirect(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->addSelect('o', 'a', 'h', 'g')
+            ->leftJoin('m.objectifs', 'o')
+            ->leftJoin('m.affectations', 'a')
+            ->leftJoin('a.hero', 'h')
+            ->leftJoin('m.geoPosition', 'g')
+            ->andWhere('m.id IN (:ids)')->setParameter('ids', $ids)
+            ->orderBy('m.id', 'ASC')
+            ->addOrderBy('o.ordreAffichage', 'ASC')
+            ->addOrderBy('o.id', 'ASC')
+            ->getQuery()->getResult();
+    }
 }

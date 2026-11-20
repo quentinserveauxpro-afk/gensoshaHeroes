@@ -34,4 +34,32 @@ class AlerteRepository extends ServiceEntityRepository
             ->andWhere('a.code LIKE :p')->setParameter('p', addcslashes($prefixeCode, '%_').'%')
             ->getQuery()->getSingleScalarResult() > 0;
     }
+
+    /**
+     * Alertes non acquittées des missions suivies, en une requête, indexées par mission.
+     *
+     * @param list<int> $missionIds
+     *
+     * @return array<int, list<Alerte>>
+     */
+    public function indexerActivesParMission(array $missionIds, int $parMission = 3): array
+    {
+        if ([] === $missionIds) {
+            return [];
+        }
+        $index = [];
+        $resultats = $this->createQueryBuilder('a')
+            ->andWhere('a.acquittee = false')
+            ->andWhere('IDENTITY(a.mission) IN (:ids)')->setParameter('ids', $missionIds)
+            ->orderBy('a.createdAt', 'DESC')->addOrderBy('a.id', 'DESC')
+            ->getQuery()->getResult();
+        foreach ($resultats as $alerte) {
+            $id = (int) $alerte->getMission()?->getId();
+            if (\count($index[$id] ?? []) < $parMission) {
+                $index[$id][] = $alerte;
+            }
+        }
+
+        return $index;
+    }
 }
