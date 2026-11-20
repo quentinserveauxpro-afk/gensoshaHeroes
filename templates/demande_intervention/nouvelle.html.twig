@@ -1,0 +1,47 @@
+{% extends 'layout/public.html.twig' %}
+{% block title %}Demande d'intervention{% endblock %}
+{% block content %}
+    <section class="card card--tinted stack-sm" aria-labelledby="di-titre">
+        <span class="label-sm">Formulaire public • Sans compte</span>
+        <h1 id="di-titre" class="headline-md">Demander l'intervention d'un héros</h1>
+        <p class="muted" style="margin:0">Décrivez la situation : un opérateur qualifie chaque demande avant toute décision d'intervention. Les champs marqués d'un astérisque sont obligatoires.</p>
+    </section>
+
+    {{ form_start(form, {attr: {class: 'card stack public-form', novalidate: 'novalidate'}}) }}
+        {{ form_errors(form) }}
+        <fieldset class="stack-sm">
+            <legend class="headline-sm">{{ include('components/_icon.html.twig', {name: 'report'}) }} La situation</legend>
+            {{ form_row(form.titre) }}
+            {{ form_row(form.description) }}
+            <div class="grid grid-2" style="gap:1rem">
+                {{ form_row(form.categorie) }}
+                <div>{{ form_row(form.urgence) }}</div>
+            </div>
+        </fieldset>
+
+        <fieldset class="stack-sm">
+            <legend class="headline-sm">{{ include('components/_icon.html.twig', {name: 'location_on'}) }} Le lieu</legend>
+            {{ form_row(form.adresse) }}
+            {{ form_row(form.complementAdresse) }}
+            <div class="grid grid-2" style="gap:1rem">{{ form_row(form.codePostal) }}{{ form_row(form.ville) }}</div>
+            <p class="label-md muted" style="margin:0">L'adresse est géolocalisée automatiquement (France métropolitaine et outre-mer).</p>
+        </fieldset>
+
+        <fieldset class="stack-sm">
+            <legend class="headline-sm">{{ include('components/_icon.html.twig', {name: 'person'}) }} Pour vous recontacter</legend>
+            {{ form_row(form.nom) }}
+            <div class="grid grid-2" style="gap:1rem">{{ form_row(form.email) }}{{ form_row(form.telephone) }}</div>
+            <p class="label-md muted" style="margin:0">Indiquez au moins un e-mail ou un téléphone.</p>
+        </fieldset>
+
+        <fieldset class="stack-sm">
+            <legend class="headline-sm">{{ include('components/_icon.html.twig', {name: 'attach_file'}) }} Pièce jointe</legend>
+            {{ form_row(form.pieceJointe) }}
+        </fieldset>
+
+        {{ form_row(form.consentement) }}
+        {{ form_row(form.site_web) }}
+        {{ form_row(form.horodatage) }}
+        <button type="submit" class="btn btn--primary btn--block">{{ include('components/_icon.html.twig', {name: 'send'}) }} Envoyer la demande</button>
+    {{ form_end(form) }}
+{% endblock %}

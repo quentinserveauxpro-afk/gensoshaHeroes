@@ -1,0 +1,133 @@
+{% extends 'base.html.twig' %}
+{% block title %}Requête {{ requete.reference }}{% endblock %}
+{% block content %}
+    {% set statut = requete.statutTraitement %}
+    <nav class="label-md" aria-label="Fil d'Ariane"><a href="{{ path('app_requete_index') }}">Requêtes citoyennes</a> › {{ requete.reference }}</nav>
+
+    <section class="card card--tinted stack-sm" aria-labelledby="rq-titre">
+        <div class="row">
+            {{ include('components/_status_badge.html.twig', {statut: statut}) }}
+            {{ include('components/_badge.html.twig', {label: requete.categorieIncident.label, tone: requete.niveauUrgence.tone}) }}
+            {{ include('components/_badge.html.twig', {label: 'Ticket #' ~ requete.reference, tone: 'muted'}) }}
+            {% if requete.soumissionPublique %}{{ include('components/_badge.html.twig', {label: 'Formulaire public', tone: 'muted'}) }}{% endif %}
+        </div>
+        <h1 id="rq-titre" class="headline-md">{{ requete.titre }}</h1>
+        <p class="label-md muted" style="margin:0">Reçue le {{ requete.dateCreation|date('d/m/Y H:i') }} • Origine : {{ requete.origine.label }}
+            {% if requete.traiteePar %} • Dernier traitement : {{ requete.traiteePar.nom }} le {{ requete.dateDernierTraitement|date('d/m/Y H:i') }}{% endif %}</p>
+    </section>
+
+    <div class="req-layout">
+        <div class="stack">
+            <section class="card stack-sm" aria-labelledby="rq-desc">
+                <h2 id="rq-desc" class="headline-sm">Situation déclarée</h2>
+                <p style="margin:0;white-space:pre-line">{{ requete.description }}</p>
+                <dl class="facts">
+                    <div><dt>Adresse</dt><dd>{{ requete.adresseComplete }}</dd></div>
+                    <div><dt>Secteur</dt><dd>{{ requete.secteur ?? '—' }}</dd></div>
+                    <div><dt>Urgence déclarée</dt><dd>{{ requete.urgenceDeclaree ? requete.urgenceDeclaree.label : '—' }}</dd></div>
+                    <div><dt>Urgence interne</dt><dd>{{ requete.niveauUrgence.label }}{% if requete.urgenceAQualifier %} <span class="text-warn">(à qualifier)</span>{% endif %}</dd></div>
+                    <div><dt>Position</dt><dd>
+                        {% if requete.coordonnees %}{{ requete.coordonnees.latitude|number_format(5, ',') }}, {{ requete.coordonnees.longitude|number_format(5, ',') }}
+                            <span class="muted">({{ requete.geoPosition.source.label }})</span>
+                        {% else %}<span class="text-warn">Non géolocalisée — corrigez-la dans la qualification.</span>{% endif %}
+                    </dd></div>
+                    {% if requete.motifRejet %}<div><dt>Motif de rejet</dt><dd>{{ requete.motifRejet }}</dd></div>{% endif %}
+                    {% if requete.informationsComplementaires %}<div><dt>Informations complémentaires</dt><dd style="white-space:pre-line">{{ requete.informationsComplementaires }}</dd></div>{% endif %}
+                </dl>
+                {% if requete.coordonnees %}
+                    <div class="geo-mini" data-controller="geo-map" data-geo-map-config-value="{{ carte_config()|json_encode }}"
+                         data-geo-map-points-value="{{ [{lat: requete.coordonnees.latitude, lng: requete.coordonnees.longitude, label: requete.titre}]|json_encode }}"
+                         role="img" aria-label="Position de la requête sur la carte"></div>
+                {% endif %}
+            </section>
+
+            <section class="card stack-sm" aria-labelledby="rq-contact">
+                <h2 id="rq-contact" class="headline-sm">Demandeur</h2>
+                <dl class="facts">
+                    <div><dt>Nom</dt><dd>{{ requete.nomDemandeur }}</dd></div>
+                    <div><dt>E-mail</dt><dd>{{ requete.emailDemandeur ?? '—' }}</dd></div>
+                    <div><dt>Téléphone</dt><dd>{{ requete.telephoneDemandeur ?? '—' }}</dd></div>
+                    <div><dt>Consentement</dt><dd>{{ requete.consentementLe ? 'Donné le ' ~ requete.consentementLe|date('d/m/Y H:i') : '—' }}</dd></div>
+                    {% if requete.pieceJointe %}
+                        <div><dt>Pièce jointe</dt><dd><a href="{{ path('app_requete_piece_jointe', {id: requete.id}) }}">{{ include('components/_icon.html.twig', {name: 'attach_file'}) }} {{ requete.pieceJointe.nomOriginal }}</a>
+                            <span class="muted">({{ (requete.pieceJointe.taille / 1024)|round }} Ko)</span></dd></div>
+                    {% endif %}
+                </dl>
+            </section>
+
+            <section class="card stack-sm" aria-labelledby="rq-hist">
+                <h2 id="rq-hist" class="headline-sm">Historique</h2>
+                <ol class="timeline">
+                    {% for h in requete.historique|sort((a, b) => b.createdAt <=> a.createdAt) %}
+                        <li>
+                            <time class="label-md muted" datetime="{{ h.createdAt|date('c') }}">{{ h.createdAt|date('d/m/Y H:i') }}</time>
+                            <strong>{{ h.action|capitalize }}</strong> —
+                            {% if h.ancienStatut %}{{ h.ancienStatut.label }} → {% endif %}{{ h.nouveauStatut.label }}
+                            <span class="muted">par {{ h.operateur ? h.operateur.nom : 'le formulaire public' }}</span>
+                            {% if h.commentaire %}<p class="label-md" style="margin:.25rem 0 0">{{ h.commentaire }}</p>{% endif %}
+                        </li>
+                    {% else %}
+                        <li class="muted">Aucune action enregistrée (requête antérieure au suivi détaillé).</li>
+                    {% endfor %}
+                </ol>
+            </section>
+        </div>
+
+        <aside class="stack sticky" aria-label="Actions de traitement">
+            {% if requete.mission %}
+                <div class="card stack-sm">
+                    <h2 class="headline-sm">Mission liée</h2>
+                    <a class="btn btn--dark" href="{{ path('app_mission_show', {id: requete.mission.id}) }}">{{ requete.mission.nom }}</a>
+                    {% if requete.convertiePar %}<span class="label-md muted">Convertie par {{ requete.convertiePar.nom }} le {{ requete.dateConversion|date('d/m/Y H:i') }}</span>{% endif %}
+                </div>
+            {% endif %}
+
+            {% if form %}
+                <div class="card stack-sm">
+                    <h2 class="headline-sm">{{ include('components/_icon.html.twig', {name: 'fact_check'}) }} Qualifier</h2>
+                    {% if statut.value == 'NOUVELLE' %}
+                        <form method="post" action="{{ path('app_requete_analyser', {id: requete.id}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('analyser' ~ requete.id) }}">
+                            <button type="submit" class="btn btn--soft btn--block">Prendre en charge (en analyse)</button>
+                        </form>
+                    {% endif %}
+                    {{ form_start(form, {attr: {class: 'stack-sm', novalidate: 'novalidate'}}) }}
+                        {{ form_row(form.statut) }}
+                        {{ form_row(form.urgenceInterne) }}
+                        {{ form_row(form.categorie) }}
+                        {{ form_row(form.secteur) }}
+                        {{ form_row(form.informations) }}
+                        <div class="grid grid-2" style="gap:.5rem">{{ form_row(form.latitude) }}{{ form_row(form.longitude) }}</div>
+                        {{ form_row(form.regeocoder) }}
+                        {{ form_row(form.commentaire) }}
+                        <button type="submit" class="btn btn--primary btn--block">Enregistrer la qualification</button>
+                    {{ form_end(form) }}
+                </div>
+
+                {% if is_granted('REQUETE_CONVERTIR', requete) %}
+                    <form method="post" action="{{ path('app_requete_convert', {id: requete.id}) }}" class="card stack-sm">
+                        <input type="hidden" name="_token" value="{{ csrf_token('convertir' ~ requete.id) }}">
+                        <p class="label-md muted" style="margin:0">Crée la mission (titre, description, urgence interne, localisation) et redirige vers sa fiche.</p>
+                        <button type="submit" class="btn btn--dark btn--block">{{ include('components/_icon.html.twig', {name: 'assignment_turned_in'}) }} Convertir en mission officielle</button>
+                    </form>
+                {% endif %}
+
+                <form method="post" action="{{ path('app_requete_rejeter', {id: requete.id}) }}" class="card stack-sm">
+                    <input type="hidden" name="_token" value="{{ csrf_token('rejeter' ~ requete.id) }}">
+                    <div class="field"><label for="motif">Motif de rejet (obligatoire)</label>
+                        <textarea id="motif" name="motif" rows="2" required minlength="5" maxlength="1000"></textarea></div>
+                    <button type="submit" class="btn btn--danger btn--block">Rejeter la requête</button>
+                </form>
+
+                <form method="post" action="{{ path('app_requete_close', {id: requete.id}) }}" class="card stack-sm">
+                    <input type="hidden" name="_token" value="{{ csrf_token('classer' ~ requete.id) }}">
+                    <div class="field"><label for="commentaire-classement">Commentaire (facultatif)</label>
+                        <input id="commentaire-classement" name="commentaire" maxlength="500"></div>
+                    <button type="submit" class="btn btn--soft btn--block">{{ include('components/_icon.html.twig', {name: 'archive'}) }} Classer sans suite</button>
+                </form>
+            {% elseif statut.ouverte %}
+                <p class="card muted">Lecture seule : le traitement est réservé aux opérateurs missions.</p>
+            {% endif %}
+        </aside>
+    </div>
+{% endblock %}

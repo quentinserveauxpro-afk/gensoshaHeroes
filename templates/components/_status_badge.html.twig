@@ -1,0 +1,7 @@
+{# Badge de statut générique (texte toujours visible : la couleur n'est jamais la seule information).
+   Paramètres : statut (enum disposant de label() et tone()) ou label + tone ; prefix ; id (cible d'actualisation temps réel) #}
+{% set texte = statut is defined and statut ? statut.label : label|default('—') %}
+{% set ton = statut is defined and statut ? statut.tone : tone|default('muted') %}
+<span class="badge badge--{{ ton }}"{% if id|default(null) %} id="{{ id }}"{% endif %} data-tone="{{ ton }}">
+    {%- if prefix|default(null) %}{{ prefix }} : {% endif %}{{ texte -}}
+</span>

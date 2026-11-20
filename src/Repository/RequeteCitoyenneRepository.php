@@ -67,4 +67,48 @@ class RequeteCitoyenneRepository extends ServiceEntityRepository
             ->andWhere('r.dateCreation >= :d')->setParameter('d', $depuis)
             ->getQuery()->getSingleScalarResult();
     }
+
+    // ------------------------------------------------------------------
+    // Ajouts (additifs) — filtres du traitement opérateur.
+    // ------------------------------------------------------------------
+
+    /**
+     * Recherche multi-critères. Le statut et la catégorie détaillés sont filtrés après
+     * lecture car ils retombent sur les colonnes historiques pour les anciennes requêtes.
+     *
+     * @return list<RequeteCitoyenne>
+     */
+    public function rechercher(
+        ?\App\Enum\NiveauUrgence $urgence = null,
+        ?\App\Enum\CategorieIncident $categorie = null,
+        ?string $secteur = null,
+        ?\App\Enum\StatutTraitement $statut = null,
+        ?RequeteCategorie $categorieHistorique = null,
+        bool $urgentesSeulement = false,
+        string $tri = 'urgence',
+    ): array {
+        $requetes = $this->filtrer($categorieHistorique, $urgentesSeulement, $tri);
+
+        return array_values(array_filter($requetes, static fn (RequeteCitoyenne $r) => (null === $urgence || $r->getNiveauUrgence() === $urgence)
+            && (null === $categorie || $r->getCategorieIncident() === $categorie)
+            && (null === $statut || $r->getStatutTraitement() === $statut)
+            && (null === $secteur || '' === $secteur || $r->getSecteur() === $secteur)));
+    }
+
+    /** @return list<string> secteurs connus, triés */
+    public function secteursConnus(): array
+    {
+        $rows = $this->createQueryBuilder('r')->select('DISTINCT r.secteur AS s')->andWhere('r.secteur IS NOT NULL')->orderBy('r.secteur')->getQuery()->getArrayResult();
+
+        return array_values(array_map(static fn (array $row) => (string) $row['s'], $rows));
+    }
+
+    /** Requêtes publiques encore nouvelles (badge de notification des opérateurs missions). */
+    public function compterNouvellesPubliques(): int
+    {
+        return (int) $this->createQueryBuilder('r')->select('COUNT(r.id)')
+            ->andWhere('r.soumissionPublique = true')
+            ->andWhere('r.statutTraitement = :s')->setParameter('s', \App\Enum\StatutTraitement::NOUVELLE)
+            ->getQuery()->getSingleScalarResult();
+    }
 }

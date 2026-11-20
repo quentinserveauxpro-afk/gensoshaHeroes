@@ -6,8 +6,8 @@
     <span class="urgent-banner__code">CODE : {{ alerte.code }}</span>
     {% if alerte.mission and alerte.mission.affectationsActives is empty and not alerte.mission.statut.closed %}
         <a class="btn btn--danger btn--sm" href="{{ path('app_squad_builder_mission', {id: alerte.mission.id}) }}">Scramble Unités</a>
-    {% elseif alerte.requete and alerte.requete.statut.ouverte %}
-        <a class="btn btn--danger btn--sm" href="{{ path('app_requete_index') }}#requete-{{ alerte.requete.id }}">Traiter</a>
+    {% elseif alerte.requete and alerte.requete.statut.ouverte and is_granted('REQUETE_CONSULTER', alerte.requete) %}
+        <a class="btn btn--danger btn--sm" href="{{ path('app_requete_show', {id: alerte.requete.id}) }}">Traiter</a>
     {% endif %}
     <form method="post" action="{{ path('app_alerte_ack', {id: alerte.id}) }}" class="inline">
         <input type="hidden" name="_token" value="{{ csrf_token('acquitter' ~ alerte.id) }}">

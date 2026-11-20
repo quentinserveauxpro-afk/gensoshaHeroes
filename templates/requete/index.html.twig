@@ -29,49 +29,40 @@
                         <a href="{{ path('app_requete_index', {categorie: c.value}) }}" {% if filtres.categorie == c %}aria-current="true"{% endif %}>{{ c.label }} ({{ parCategorie[c.value] ?? 0 }})</a>
                     {% endfor %}
                 </nav>
-                <form method="get" class="row" style="justify-content:flex-end">
+                <form method="get" class="row filters" style="justify-content:flex-end;flex-wrap:wrap">
                     {% if filtres.categorie %}<input type="hidden" name="categorie" value="{{ filtres.categorie.value }}">{% endif %}
+                    {% if filtres.urgentes %}<input type="hidden" name="urgentes" value="1">{% endif %}
+                    <label for="f-statut" class="label-md">Statut</label>
+                    <select id="f-statut" name="statut" style="width:auto">
+                        <option value="">Tous</option>
+                        {% for st in enum_cases('App\\Enum\\StatutTraitement') %}<option value="{{ st.value }}" {% if filtres.statut == st %}selected{% endif %}>{{ st.label }}</option>{% endfor %}
+                    </select>
+                    <label for="f-urgence" class="label-md">Urgence</label>
+                    <select id="f-urgence" name="urgence" style="width:auto">
+                        <option value="">Toutes</option>
+                        {% for u in enum_cases('App\\Enum\\NiveauUrgence') %}<option value="{{ u.value }}" {% if filtres.urgence == u %}selected{% endif %}>{{ u.label }}</option>{% endfor %}
+                    </select>
+                    <label for="f-type" class="label-md">Type</label>
+                    <select id="f-type" name="type" style="width:auto">
+                        <option value="">Tous</option>
+                        {% for c in enum_cases('App\\Enum\\CategorieIncident') %}<option value="{{ c.value }}" {% if filtres.type == c %}selected{% endif %}>{{ c.label }}</option>{% endfor %}
+                    </select>
+                    <label for="f-secteur" class="label-md">Secteur</label>
+                    <select id="f-secteur" name="secteur" style="width:auto">
+                        <option value="">Tous</option>
+                        {% for sec in secteurs %}<option value="{{ sec }}" {% if filtres.secteur == sec %}selected{% endif %}>{{ sec }}</option>{% endfor %}
+                    </select>
                     <label for="tri" class="label-md">Tri</label>
                     <select id="tri" name="tri" style="width:auto">
                         <option value="urgence" {% if filtres.tri == 'urgence' %}selected{% endif %}>Urgence décroissante</option>
                         <option value="date" {% if filtres.tri == 'date' %}selected{% endif %}>Plus récentes</option>
                     </select>
-                    <button type="submit" class="btn btn--soft btn--sm">Trier</button>
+                    <button type="submit" class="btn btn--soft btn--sm">Filtrer</button>
                 </form>
             </div>
 
             {% for r in requetes %}
-                <article id="requete-{{ r.id }}" class="card req-card req-card--{{ r.niveauUrgence.value }} stack-sm" aria-labelledby="r-{{ r.id }}">
-                    <div class="row">
-                        {{ include('components/_badge.html.twig', {label: r.categorie.label ~ (r.niveauUrgence.value == 'CRITIQUE' ? ' absolue' : ''), tone: r.niveauUrgence.tone}) }}
-                        {{ include('components/_badge.html.twig', {label: 'Ticket #' ~ r.reference, tone: 'muted'}) }}
-                        <span class="label-md muted">{{ include('components/_icon.html.twig', {name: 'schedule'}) }} Déclaré le {{ r.dateCreation|date('d/m H:i') }}</span>
-                    </div>
-                    <span class="label-md">{{ include('components/_badge.html.twig', {label: 'Source : ' ~ r.origine.label ~ ' — ' ~ r.nomDemandeur, tone: 'ok'}) }}</span>
-                    <h2 id="r-{{ r.id }}" class="headline-sm">{{ r.titre }}</h2>
-                    <p class="row label-md" style="margin:0">{{ include('components/_icon.html.twig', {name: 'location_on'}) }} {{ r.adresse }} • <span class="{{ r.niveauUrgence.urgent ? 'text-danger' }}">Urgence {{ r.niveauUrgence.label|lower }}</span></p>
-                    <div class="req-card__body"><p style="margin:0">{{ r.description }}</p></div>
-                    <div class="row">
-                        {{ include('components/_badge.html.twig', {label: 'Statut : ' ~ r.statut.label, tone: 'muted'}) }}
-                        {% if r.mission %}
-                            <a class="btn btn--soft btn--sm" href="{{ path('app_mission_show', {id: r.mission.id}) }}">{{ include('components/_icon.html.twig', {name: 'link'}) }} Mission : {{ r.mission.nom|tronquer(40) }}</a>
-                        {% endif %}
-                    </div>
-                    {% if r.statut.ouverte %}
-                        <div class="row">
-                            {% if is_granted('ROLE_ADMIN') %}
-                                <form method="post" action="{{ path('app_requete_convert', {id: r.id}) }}" class="inline">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('convertir' ~ r.id) }}">
-                                    <button type="submit" class="btn btn--dark">{{ include('components/_icon.html.twig', {name: 'assignment_turned_in'}) }} Convertir en mission officielle</button>
-                                </form>
-                            {% endif %}
-                            <form method="post" action="{{ path('app_requete_close', {id: r.id}) }}" class="inline">
-                                <input type="hidden" name="_token" value="{{ csrf_token('classer' ~ r.id) }}">
-                                <button type="submit" class="btn btn--soft">{{ include('components/_icon.html.twig', {name: 'archive'}) }} Classer sans suite</button>
-                            </form>
-                        </div>
-                    {% endif %}
-                </article>
+                {{ include('components/_request_card.html.twig', {r: r}) }}
             {% else %}
                 <p class="card muted">Aucune requête.</p>
             {% endfor %}

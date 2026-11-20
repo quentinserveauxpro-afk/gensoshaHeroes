@@ -1,0 +1,44 @@
+{# Carte de requête citoyenne (liste de traitement). Paramètre : r (RequeteCitoyenne) #}
+{% set statut = r.statutTraitement %}
+<article id="requete-{{ r.id }}" class="card req-card req-card--{{ r.niveauUrgence.value }} stack-sm" aria-labelledby="r-{{ r.id }}">
+    <div class="row">
+        {{ include('components/_badge.html.twig', {label: r.categorieIncident.label, tone: r.niveauUrgence.tone}) }}
+        {{ include('components/_badge.html.twig', {label: 'Ticket #' ~ r.reference, tone: 'muted'}) }}
+        {{ include('components/_status_badge.html.twig', {statut: statut}) }}
+        {% if r.soumissionPublique %}{{ include('components/_badge.html.twig', {label: 'Formulaire public', tone: 'muted'}) }}{% endif %}
+        <span class="label-md muted">{{ include('components/_icon.html.twig', {name: 'schedule'}) }} Déclaré le {{ r.dateCreation|date('d/m H:i') }}</span>
+    </div>
+    <span class="label-md">{{ include('components/_badge.html.twig', {label: 'Source : ' ~ r.origine.label ~ ' — ' ~ r.nomDemandeur, tone: 'ok'}) }}</span>
+    <h2 id="r-{{ r.id }}" class="headline-sm"><a href="{{ path('app_requete_show', {id: r.id}) }}">{{ r.titre }}</a></h2>
+    <p class="row label-md" style="margin:0">
+        {{ include('components/_icon.html.twig', {name: 'location_on'}) }} {{ r.adresseComplete }}
+        {% if r.secteur %} • Secteur {{ r.secteur }}{% endif %}
+        • <span class="{{ r.niveauUrgence.urgent ? 'text-danger' }}">Urgence {{ r.niveauUrgence.label|lower }}</span>
+        {% if r.urgenceAQualifier %}<span class="muted">(à qualifier{% if r.urgenceDeclaree %} — déclarée : {{ r.urgenceDeclaree.label|lower }}{% endif %})</span>{% endif %}
+        {% if not r.coordonnees %}<span class="text-warn">• à géolocaliser</span>{% endif %}
+    </p>
+    <div class="req-card__body"><p style="margin:0">{{ r.description|tronquer(400) }}</p></div>
+    <div class="row">
+        {{ include('components/_badge.html.twig', {label: 'Statut : ' ~ r.statut.label, tone: 'muted'}) }}
+        {% if r.mission %}
+            <a class="btn btn--soft btn--sm" href="{{ path('app_mission_show', {id: r.mission.id}) }}">{{ include('components/_icon.html.twig', {name: 'link'}) }} Mission : {{ r.mission.nom|tronquer(40) }}</a>
+        {% endif %}
+    </div>
+    {% if statut.ouverte %}
+        <div class="row">
+            <a class="btn btn--soft" href="{{ path('app_requete_show', {id: r.id}) }}">{{ include('components/_icon.html.twig', {name: 'fact_check'}) }} Traiter</a>
+            {% if is_granted('REQUETE_CONVERTIR', r) %}
+                <form method="post" action="{{ path('app_requete_convert', {id: r.id}) }}" class="inline">
+                    <input type="hidden" name="_token" value="{{ csrf_token('convertir' ~ r.id) }}">
+                    <button type="submit" class="btn btn--dark">{{ include('components/_icon.html.twig', {name: 'assignment_turned_in'}) }} Convertir en mission officielle</button>
+                </form>
+            {% endif %}
+            {% if is_granted('REQUETE_CLASSER', r) %}
+                <form method="post" action="{{ path('app_requete_close', {id: r.id}) }}" class="inline">
+                    <input type="hidden" name="_token" value="{{ csrf_token('classer' ~ r.id) }}">
+                    <button type="submit" class="btn btn--soft">{{ include('components/_icon.html.twig', {name: 'archive'}) }} Classer sans suite</button>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+</article>

@@ -1,0 +1,13 @@
+{% extends 'layout/public.html.twig' %}
+{% block title %}Demande transmise{% endblock %}
+{% block content %}
+    <section class="card stack" role="status" aria-labelledby="conf-titre">
+        <span class="kpi__icon" style="width:48px;height:48px">{{ include('components/_icon.html.twig', {name: 'check_circle'}) }}</span>
+        <h1 id="conf-titre" class="headline-md">Votre demande a bien été transmise</h1>
+        {% if reference %}
+            <p style="margin:0">Référence de votre demande : <strong class="mono">{{ reference }}</strong>. Conservez-la si vous recontactez le service.</p>
+        {% endif %}
+        <p class="muted" style="margin:0">Un opérateur va l'examiner. Vous pourrez être recontacté si des informations complémentaires sont nécessaires.</p>
+        <a class="btn btn--soft" href="{{ path('app_demande_intervention') }}">Faire une autre demande</a>
+    </section>
+{% endblock %}

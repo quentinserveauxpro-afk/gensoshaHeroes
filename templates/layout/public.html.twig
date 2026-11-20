@@ -1,0 +1,19 @@
+{% extends 'base.html.twig' %}
+{# Mise en page publique : pas de navigation interne, aucune donnée opérationnelle. #}
+{% block body %}
+    <a class="skip-link" href="#contenu">Aller au contenu</a>
+    <header class="public-header">
+        <span class="brand" style="padding:0">
+            <span class="brand__logo">{{ include('components/_icon.html.twig', {name: 'shield'}) }}</span>
+            <span><span class="brand__name">GENOSHA HEROES</span><br><span class="brand__sub">Service d'intervention citoyen</span></span>
+        </span>
+        <a class="btn-link label-md" href="{{ path('app_login') }}">Espace opérateurs</a>
+    </header>
+    <main id="contenu" class="public-main" tabindex="-1">
+        {{ include('components/_flashes.html.twig') }}
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="public-footer label-md muted">
+        En cas de danger de mort immédiat, appelez d'abord le 112. Les données transmises servent uniquement au traitement de votre demande.
+    </footer>
+{% endblock %}

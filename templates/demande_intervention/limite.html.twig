@@ -1,0 +1,9 @@
+{% extends 'layout/public.html.twig' %}
+{% block title %}Trop de demandes{% endblock %}
+{% block content %}
+    <section class="card stack" role="alert" aria-labelledby="lim-titre">
+        <h1 id="lim-titre" class="headline-md">Trop de demandes envoyées</h1>
+        <p style="margin:0">Pour protéger le service, le nombre de demandes est limité. Merci de réessayer après {{ reessayer|date('H:i') }}.</p>
+        <p class="muted" style="margin:0">En cas de danger immédiat, appelez le 112.</p>
+    </section>
+{% endblock %}

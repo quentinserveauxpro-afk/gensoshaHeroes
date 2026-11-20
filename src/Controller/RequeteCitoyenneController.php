@@ -3,7 +3,13 @@
 namespace App\Controller;
 
 use App\Entity\RequeteCitoyenne;
+use App\Entity\User;
+use App\Enum\CategorieIncident;
+use App\Enum\NiveauUrgence;
 use App\Enum\RequeteCategorie;
+use App\Enum\StatutTraitement;
+use App\Requete\RequeteTraitementService;
+use App\Security\Voter\RequeteCitoyenneVoter;
 use App\Form\RequeteCitoyenneType;
 use App\Repository\RequeteCitoyenneRepository;
 use App\Service\Requete\RequeteCitoyenneService;
@@ -15,7 +21,8 @@ use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-#[IsGranted('ROLE_OPERATOR')]
+// Opérateurs missions (et opérateur polyvalent historique) ; jamais les opérateurs héros.
+#[IsGranted(RequeteCitoyenneVoter::CONSULTER)]
 #[Route('/requetes')]
 final class RequeteCitoyenneController extends AbstractController
 {
@@ -28,6 +35,10 @@ final class RequeteCitoyenneController extends AbstractController
         #[MapQueryParameter] ?RequeteCategorie $categorie = null,
         #[MapQueryParameter] bool $urgentes = false,
         #[MapQueryParameter] string $tri = 'urgence',
+        #[MapQueryParameter] ?NiveauUrgence $urgence = null,
+        #[MapQueryParameter] ?CategorieIncident $type = null,
+        #[MapQueryParameter] ?string $secteur = null,
+        #[MapQueryParameter] ?StatutTraitement $statut = null,
     ): Response {
         $requete = new RequeteCitoyenne();
         $form = $this->createForm(RequeteCitoyenneType::class, $requete);
@@ -41,8 +52,9 @@ final class RequeteCitoyenneController extends AbstractController
 
         return $this->render('requete/index.html.twig', [
             'form' => $form,
-            'requetes' => $requetes->filtrer($categorie, $urgentes, 'date' === $tri ? 'date' : 'urgence'),
-            'filtres' => ['categorie' => $categorie, 'urgentes' => $urgentes, 'tri' => $tri],
+            'requetes' => $requetes->rechercher($urgence, $type, $secteur, $statut, $categorie, $urgentes, 'date' === $tri ? 'date' : 'urgence'),
+            'filtres' => ['categorie' => $categorie, 'urgentes' => $urgentes, 'tri' => $tri, 'urgence' => $urgence, 'type' => $type, 'secteur' => $secteur, 'statut' => $statut],
+            'secteurs' => $requetes->secteursConnus(),
             'parCategorie' => $requetes->compterParCategorie(),
             'total' => $requetes->count([]),
             'urgentesNonTraitees' => $requetes->compterUrgentesNonTraitees(),
@@ -51,14 +63,15 @@ final class RequeteCitoyenneController extends AbstractController
     }
 
     #[Route('/{id}/convertir', name: 'app_requete_convert', requirements: ['id' => '\d+'], methods: ['POST'])]
-    #[IsGranted('ROLE_ADMIN')]
-    public function convertir(RequeteCitoyenne $requete, Request $request, RequeteCitoyenneService $service): Response
+    #[IsGranted(RequeteCitoyenneVoter::CONVERTIR, 'requete')]
+    public function convertir(RequeteCitoyenne $requete, Request $request, RequeteTraitementService $service): Response
     {
         if (!$this->isCsrfTokenValid('convertir'.$requete->getId(), $request->getPayload()->getString('_token'))) {
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
         }
         try {
-            $mission = $service->convertirEnMission($requete);
+            // Transaction Doctrine : mission + lien + historique, ou rien.
+            $mission = $service->convertir($requete, $this->operateur());
         } catch (\DomainException $e) {
             $this->addFlash('danger', $e->getMessage());
 
@@ -70,18 +83,27 @@ final class RequeteCitoyenneController extends AbstractController
     }
 
     #[Route('/{id}/classer', name: 'app_requete_close', requirements: ['id' => '\d+'], methods: ['POST'])]
-    public function classer(RequeteCitoyenne $requete, Request $request, RequeteCitoyenneService $service): Response
+    #[IsGranted(RequeteCitoyenneVoter::CLASSER, 'requete')]
+    public function classer(RequeteCitoyenne $requete, Request $request, RequeteTraitementService $service): Response
     {
         if (!$this->isCsrfTokenValid('classer'.$requete->getId(), $request->getPayload()->getString('_token'))) {
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
         }
         try {
-            $service->classer($requete);
+            $service->classer($requete, $this->operateur(), $request->getPayload()->getString('commentaire') ?: null);
             $this->addFlash('success', sprintf('Requête %s classée sans suite.', $requete->getReference()));
         } catch (\DomainException $e) {
             $this->addFlash('danger', $e->getMessage());
         }
 
         return $this->redirectToRoute('app_requete_index', [], Response::HTTP_SEE_OTHER);
+    }
+
+    private function operateur(): User
+    {
+        $user = $this->getUser();
+        \assert($user instanceof User);
+
+        return $user;
     }
 }
