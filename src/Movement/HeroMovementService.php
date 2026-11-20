@@ -8,7 +8,10 @@ use App\Entity\HeroMovement;
 use App\Entity\Mission;
 use App\Enum\AffectationStatut;
 use App\Enum\SourceGeolocalisation;
+use App\GameTime\GameTimeConfiguration;
+use App\GameTime\HeroTravelTimeCalculator;
 use App\Infirmerie\QgConfiguration;
+use App\Service\Mission\EffectiveStatsResolver;
 use App\Geo\Coordonnees;
 use App\Geo\DistanceCalculator;
 use App\Geo\EstimatedArrivalCalculator;
@@ -20,6 +23,7 @@ use Psr\Clock\ClockInterface;
  * Déplacements des héros vers les missions (serveur = source de vérité).
  *
  * - Trajet simulé en ligne droite sur le grand cercle (pas d'itinéraire routier réel).
+ * - Durée accélérée (HeroTravelTimeCalculator, 30 s à 10 min) : la distance réelle reste exacte.
  * - La position courante est une fonction pure du temps : position(t) = interpolation(départ,
  *   arrivée, (t − départ) / (arrivée prévue − départ)). Un rechargement de page ou un redémarrage
  *   du worker reprend donc exactement au bon endroit.
@@ -38,11 +42,14 @@ final class HeroMovementService
         private readonly EstimatedArrivalCalculator $eta,
         private readonly ClockInterface $clock,
         ?QgConfiguration $qg = null,
+        ?HeroTravelTimeCalculator $temps = null,
     ) {
         $this->qg = $qg ?? new QgConfiguration();
+        $this->temps = $temps ?? new HeroTravelTimeCalculator(new GameTimeConfiguration(), new EffectiveStatsResolver());
     }
 
     private readonly QgConfiguration $qg;
+    private readonly HeroTravelTimeCalculator $temps;
 
     /**
      * Crée les déplacements manquants des héros « en route » d'une mission (idempotent).
@@ -85,7 +92,8 @@ final class HeroMovementService
         $now = $this->clock->now();
         $depart = $hero->getCoordonnees() ?? $this->qg->coordonnees();
         $distance = $this->distances->distanceKm($depart, $arrivee);
-        $vitesse = $this->eta->vitessePourHero($hero);
+        // Durée accélérée (30 s à 10 min) ; la distance réelle est conservée telle quelle.
+        $duree = $this->temps->duree($hero, $distance, $now, self::DISTANCE_SUR_PLACE_KM);
 
         $mouvement = new HeroMovement(
             $hero,
@@ -93,9 +101,9 @@ final class HeroMovementService
             $depart,
             $arrivee,
             round($distance, 3),
-            $vitesse,
+            HeroTravelTimeCalculator::vitesseEquivalente($distance, $duree),
             $now,
-            $this->eta->dateArrivee($now, $distance, $vitesse),
+            $now->modify(sprintf('+%d seconds', $duree)),
             $affectation,
         );
         $this->em->persist($mouvement);

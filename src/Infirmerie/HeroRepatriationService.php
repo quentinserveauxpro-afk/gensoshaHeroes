@@ -15,7 +15,7 @@ use App\Enum\NiveauAlerte;
 use App\Enum\TypeAdmission;
 use App\Geo\Coordonnees;
 use App\Geo\DistanceCalculator;
-use App\Geo\EstimatedArrivalCalculator;
+use App\GameTime\HeroTravelTimeCalculator;
 use App\Movement\HeroMovementService;
 use App\Repository\HeroMovementRepository;
 use App\Repository\HeroRepository;
@@ -60,7 +60,7 @@ final class HeroRepatriationService
         private readonly InfirmerieConfiguration $config,
         private readonly QgConfiguration $qg,
         private readonly DistanceCalculator $distances,
-        private readonly EstimatedArrivalCalculator $eta,
+        private readonly HeroTravelTimeCalculator $tempsTrajet,
         private readonly ClockInterface $clock,
     ) {
     }
@@ -225,8 +225,9 @@ final class HeroRepatriationService
 
             return;
         }
-        $vitesse = $this->eta->vitessePourHero($sejour->getHero());
-        $sejour->commencerRetour($depart, round($distance, 3), $vitesse, $t, $this->eta->dateArrivee($t, $distance, $vitesse));
+        // Retour accéléré, plafonné comme tout déplacement (10 min par défaut).
+        $duree = $this->tempsTrajet->duree($sejour->getHero(), $distance, $t, QgConfiguration::RAYON_KM);
+        $sejour->commencerRetour($depart, round($distance, 3), HeroTravelTimeCalculator::vitesseEquivalente($distance, $duree), $t, $t->modify(sprintf('+%d seconds', $duree)));
     }
 
     /** Position réelle à l'instant t : sur son trajet s'il était en route, sinon sa dernière position. */

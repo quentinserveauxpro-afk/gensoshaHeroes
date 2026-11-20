@@ -136,15 +136,21 @@ final class MissionsUpdateCommandTest extends KernelTestCase
 
     public function testEcheanceDepasseeAvantArriveeFaitEchouerLaMission(): void
     {
-        // Héros à La Réunion : près de 9 000 km, impossible d'arriver avant l'échéance (3 h).
+        // Héros à La Réunion : près de 9 000 km, trajet plafonné à 10 min (échelle accélérée),
+        // échéance de la mission dans 5 min : impossible d'arriver à temps.
         $hero = $this->em->find(\App\Entity\Hero::class, $this->heroId);
         $hero->getGeoPosition()->setCoordonnees(new \App\Geo\Coordonnees(-20.8823, 55.4504));
+        $this->em->find(Mission::class, $this->missionId)->setDateFinPrevue(new \DateTimeImmutable('2026-11-20 10:05:00'));
         $this->em->flush();
         $this->em->clear();
 
         $this->executer();
         self::assertGreaterThan(8500, $this->mouvement()->getDistanceKm());
-        $this->horloge->sleep(4 * 3600);
+        $m = $this->mouvement();
+        $duree = $m->getDateArriveePrevue()->getTimestamp() - $m->getDateDepart()->getTimestamp();
+        self::assertLessThanOrEqual(600, $duree, 'plafond de 10 min');
+        self::assertGreaterThan(300, $duree, 'arrivée après l\'échéance');
+        $this->horloge->sleep(6 * 60);
         $this->executer();
         self::assertSame(MissionStatut::ECHOUEE, $this->em->find(Mission::class, $this->missionId)->getStatut());
         self::assertSame(MouvementStatut::INTERROMPU, $this->mouvement()->getStatut());
