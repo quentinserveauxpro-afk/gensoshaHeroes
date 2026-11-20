@@ -16,6 +16,7 @@ use App\Enum\OrigineAlerte;
 use App\Enum\StatutTraitement;
 use App\Form\Model\DemandeIntervention;
 use App\Form\Model\QualificationRequete;
+use App\Form\Model\SignalementCitoyen;
 use App\Geo\Coordonnees;
 use App\Geo\Geocoding\AdressePostale;
 use App\Geo\GeolocalisationService;
@@ -73,13 +74,51 @@ final class RequeteTraitementService
             ->setSoumissionPublique(true)
             ->setStatutTraitement(StatutTraitement::NOUVELLE)
             ->setDateCreation($now);
-        $requete->setSecteur($this->secteurs->secteur($requete->getCodePostal()));
         $requete->setPieceJointe($pieceJointe);
+
+        return $this->enregistrerNouvelle($requete, 'Demande reçue via le formulaire public.', $now);
+    }
+
+    /**
+     * Signalement d'un citoyen connecté (ROLE_CITOYEN). Anonyme : ni nom ni prénom enregistrés.
+     * Le super-vilain n'est conservé que si sa présence est signalée. Aucune mission n'est créée.
+     */
+    public function enregistrerSignalementCitoyen(SignalementCitoyen $s, User $citoyen): RequeteCitoyenne
+    {
+        $now = $this->clock->now();
+        $villain = $s->presenceVilain ? $s->villain : null;
+        $description = self::nettoyerOuNull($s->description, true);
+        $requete = (new RequeteCitoyenne())
+            ->setTitre(mb_substr(sprintf('%s — %s%s', $s->categorie->label(), self::nettoyer($s->ville), null !== $villain ? ' (super-vilain signalé)' : ''), 0, 255))
+            ->setDescription($description ?? 'Aucune description fournie par le citoyen.')
+            ->setAdresse(self::nettoyer($s->adresse))
+            ->setCodePostal(trim((string) $s->codePostal))
+            ->setVille(self::nettoyer($s->ville))
+            ->setCategorieIncident($s->categorie)
+            ->setNiveauUrgence(NiveauUrgence::MOYENNE)
+            ->setUrgenceAQualifier(true)
+            ->setOrigine(OrigineAlerte::CIVIL)
+            ->setAnonyme($s->anonyme)
+            ->setNomDemandeur($s->anonyme ? self::NOM_ANONYME : self::nettoyer($s->nom))
+            ->setPrenomDemandeur($s->anonyme ? null : self::nettoyerOuNull($s->prenom))
+            ->setVillainSignale($villain)
+            ->setCitoyen($citoyen)
+            ->setSoumissionPublique(false)
+            ->setStatutTraitement(StatutTraitement::NOUVELLE)
+            ->setDateCreation($now);
+
+        return $this->enregistrerNouvelle($requete, 'Signalement reçu depuis l\'espace citoyen.', $now);
+    }
+
+    /** Secteur, géolocalisation, enregistrement historisé et notification des opérateurs. */
+    private function enregistrerNouvelle(RequeteCitoyenne $requete, string $commentaire, \DateTimeImmutable $now): RequeteCitoyenne
+    {
+        $requete->setSecteur($this->secteurs->secteur($requete->getCodePostal()));
         $requete->setGeoPosition($this->geolocaliser($requete));
 
-        $this->em->wrapInTransaction(function () use ($requete, $now): void {
+        $this->em->wrapInTransaction(function () use ($requete, $commentaire, $now): void {
             $this->em->persist($requete);
-            $this->historiser($requete, 'SOUMISSION', null, StatutTraitement::NOUVELLE, null, 'Demande reçue via le formulaire public.', $now);
+            $this->historiser($requete, 'SOUMISSION', null, StatutTraitement::NOUVELLE, null, $commentaire, $now);
             $this->em->flush();
             $this->notifierOperateurs($requete, $now);
             $this->em->flush();
