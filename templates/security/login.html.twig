@@ -7,7 +7,7 @@
                 <span class="brand__logo">{{ include('components/_icon.html.twig', {name: 'shield'}) }}</span>
                 <span><span class="brand__name">GENOSHA HEROES</span><br><span class="brand__sub">Système de commandement</span></span>
             </div>
-            <h1 class="headline-md">Authentification opérateur</h1>
+            <h1 class="headline-md">Authentification</h1>
             {% if error %}<div class="flash flash--danger" role="alert">{{ error.messageKey|trans(error.messageData, 'security') }}</div>{% endif %}
             <form method="post" action="{{ path('app_login') }}" class="stack">
                 <div class="field"><label for="username">E-mail</label>
