@@ -77,6 +77,13 @@
                     <span class="label-md">Slots activés : {{ ids|length }} / {{ taille }}</span>
                 </form>
             </div>
+            {% if exclus|default([]) is not empty %}
+                <div class="alert-item alert-item--warn" role="status" data-test="exclus-infirmerie">
+                    {{ include('components/_icon.html.twig', {name: 'medical_services'}) }}
+                    <span>Retiré{{ exclus|length > 1 ? 's' : '' }} de la composition (infirmerie) :
+                        {% for x in exclus %}<strong>{{ x.hero.nom }}</strong> — {{ x.motif }}{{ not loop.last ? ' ; ' }}{% endfor %}.</span>
+                </div>
+            {% endif %}
             <div class="sb-slots">
                 {% for membre in membres %}
                     {{ include('squad_builder/_slot.html.twig', {membre: membre, index: loop.index}) }}

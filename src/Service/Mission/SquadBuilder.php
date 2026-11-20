@@ -5,6 +5,7 @@ namespace App\Service\Mission;
 use App\Entity\Hero;
 use App\Entity\Mission;
 use App\Enum\HeroRole;
+use App\Infirmerie\DisponibiliteMedicale;
 use App\Repository\HeroRepository;
 use App\Service\Hero\HeroRecommendation;
 use App\Service\Hero\HeroRecommendationService;
@@ -26,6 +27,7 @@ final class SquadBuilder
         private readonly DeploymentValidator $validator,
         private readonly HeroRecommendationService $recommandations,
         private readonly PositionDistanceCalculator $distances,
+        private readonly ?DisponibiliteMedicale $medical = null,
     ) {
     }
 
@@ -55,6 +57,17 @@ final class SquadBuilder
     public function construire(Mission $mission, array $ids, ?int $taille, array $filtres): array
     {
         $equipe = $this->heroes->findParIdsOrdonnes($ids);
+        // Un héros à l'infirmerie n'est ni sélectionnable ni comptabilisé (synergies, pronostic).
+        $exclus = [];
+        if (null !== $this->medical) {
+            $sejours = $this->medical->sejoursActifs(array_map(static fn (Hero $h) => (int) $h->getId(), $equipe));
+            foreach ($equipe as $hero) {
+                if (isset($sejours[$hero->getId()])) {
+                    $exclus[] = ['hero' => $hero, 'motif' => $this->medical->motif($hero, $sejours[$hero->getId()], false)];
+                }
+            }
+            $equipe = array_values(array_filter($equipe, static fn (Hero $h) => !isset($sejours[$h->getId()])));
+        }
         $taille = max($mission->getTailleEquipeMinimale(), min($mission->getTailleEquipeMaximale(), $taille ?? max(\count($equipe), $mission->getTailleEquipeMinimale())));
         $taille = max($taille, \count($equipe));
 
@@ -81,6 +94,7 @@ final class SquadBuilder
             'rapport' => $this->validator->valider($mission, $equipe),
             'reserve' => $reserve,
             'compteurs' => $compteurs,
+            'exclus' => $exclus,
             'suggestion' => \count($equipe) < $taille ? $this->recommandations->meilleure($mission, $tous, $equipe) : null,
         ];
     }

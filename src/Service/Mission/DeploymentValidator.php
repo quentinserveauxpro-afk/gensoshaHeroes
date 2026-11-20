@@ -6,6 +6,7 @@ use App\Entity\Hero;
 use App\Entity\Mission;
 use App\Enum\MissionStatut;
 use App\Enum\Statistique;
+use App\Infirmerie\DisponibiliteMedicale;
 use App\Repository\AffectationMissionRepository;
 use App\Service\Map\PositionDistanceCalculator;
 use Psr\Clock\ClockInterface;
@@ -15,7 +16,8 @@ use Psr\Clock\ClockInterface;
  *
  * Bloquant : mission close ou déjà déployée, équipe trop petite / trop grande, doublon,
  * héros indisponible, héros engagé dans une autre mission active, santé sous le seuil,
- * aptitude obligatoire manquante, statistique requise non atteinte par au moins un héros.
+ * aptitude obligatoire manquante, statistique requise non atteinte par au moins un héros,
+ * héros à l'infirmerie ou en état médical critique.
  */
 final class DeploymentValidator
 {
@@ -28,6 +30,7 @@ final class DeploymentValidator
         private readonly EffectiveStatsResolver $statsResolver,
         private readonly PositionDistanceCalculator $distances,
         private readonly ClockInterface $clock,
+        private readonly ?DisponibiliteMedicale $medical = null,
     ) {
     }
 
@@ -60,9 +63,15 @@ final class DeploymentValidator
             $engages[$affectation->getHero()->getId()] = $affectation->getMission();
         }
 
+        // Revalidation serveur de l'aptitude médicale (séjour à l'infirmerie, état critique).
+        $sejours = $this->medical?->sejoursActifs($ids) ?? [];
+
         foreach ($equipe as $hero) {
             $nom = (string) $hero->getNom();
-            if (isset($engages[$hero->getId()])) {
+            $motifMedical = $this->medical?->motif($hero, $sejours[$hero->getId()] ?? null, false);
+            if (null !== $motifMedical) {
+                $erreurs[] = sprintf('%s est médicalement indisponible : %s.', $nom, mb_strtolower($motifMedical));
+            } elseif (isset($engages[$hero->getId()])) {
                 $erreurs[] = sprintf('%s est déjà engagé dans la mission « %s ».', $nom, $engages[$hero->getId()]->getNom());
             } elseif (!$hero->isDisponible()) {
                 $erreurs[] = sprintf('%s est indisponible (%s).', $nom, mb_strtolower($hero->getStatut()->label()));

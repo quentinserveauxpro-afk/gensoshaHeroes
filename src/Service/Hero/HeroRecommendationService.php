@@ -2,6 +2,7 @@
 
 namespace App\Service\Hero;
 
+use App\Infirmerie\DisponibiliteMedicale;
 use App\Entity\Hero;
 use App\Entity\Mission;
 use App\Repository\AffectationMissionRepository;
@@ -25,7 +26,8 @@ use Psr\Clock\ClockInterface;
  *        + min(5, bonus actifs positifs / 4)
  *        − 0,1 × écart de combat avec le vilain le plus fort
  *        − fatigue / 10
- * borné à [0, 100]. Un héros indisponible, engagé ailleurs ou sous le seuil de santé est inéligible.
+ * borné à [0, 100]. Un héros indisponible, engagé ailleurs ou sous le seuil de santé est inéligible,
+ * de même qu'un héros à l'infirmerie ou en état médical critique (motif affiché).
  */
 final class HeroRecommendationService
 {
@@ -35,6 +37,7 @@ final class HeroRecommendationService
         private readonly SynergyResolver $synergyResolver,
         private readonly AffectationMissionRepository $affectations,
         private readonly ClockInterface $clock,
+        private readonly ?DisponibiliteMedicale $medical = null,
     ) {
     }
 
@@ -47,12 +50,13 @@ final class HeroRecommendationService
     public function recommander(Mission $mission, array $candidats, array $equipe = []): array
     {
         $engages = $this->affectations->indexerActivesParHero($mission);
+        $sejours = $this->medical?->sejoursActifs(array_map(static fn (Hero $h) => (int) $h->getId(), $candidats)) ?? [];
         $recommandations = [];
         foreach ($candidats as $hero) {
             if (\in_array($hero, $equipe, true)) {
                 continue;
             }
-            $recommandations[] = $this->evaluer($mission, $hero, $equipe, $engages[$hero->getId()] ?? null);
+            $recommandations[] = $this->evaluer($mission, $hero, $equipe, $engages[$hero->getId()] ?? null, $this->medical?->motif($hero, $sejours[$hero->getId()] ?? null, false));
         }
 
         usort($recommandations, static fn (HeroRecommendation $a, HeroRecommendation $b) => [$b->eligible, $b->score] <=> [$a->eligible, $a->score]);
@@ -76,13 +80,18 @@ final class HeroRecommendationService
     }
 
     /** @param list<Hero> $equipe */
-    public function evaluer(Mission $mission, Hero $hero, array $equipe = [], ?object $affectationAilleurs = null): HeroRecommendation
+    /** @param string|false|null $motifMedical false = à déterminer, null = apte, chaîne = indisponible */
+    public function evaluer(Mission $mission, Hero $hero, array $equipe = [], ?object $affectationAilleurs = null, string|false|null $motifMedical = false): HeroRecommendation
     {
         $now = $this->clock->now();
         $raisons = [];
         $distance = round($this->distances->heroMission($hero, $mission), 1);
+        if (false === $motifMedical) {
+            $motifMedical = $this->medical?->motif($hero);
+        }
 
         $motif = match (true) {
+            null !== $motifMedical => $motifMedical,
             null !== $affectationAilleurs => 'Engagé sur une autre mission',
             !$hero->isDisponible() => $hero->getStatut()->label(),
             $hero->getSantePourcentage() < $mission->getSeuilSanteMinimal() => 'Santé insuffisante',
