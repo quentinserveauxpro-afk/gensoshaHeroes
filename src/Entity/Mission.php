@@ -506,4 +506,48 @@ class Mission
     {
         return (string) $this->nom;
     }
+
+    // ------------------------------------------------------------------
+    // Ajouts (additifs) — carte réelle : position GPS de l'intervention.
+    // positionX / positionY (grille abstraite) restent inchangés.
+    // ------------------------------------------------------------------
+
+    #[ORM\OneToOne(cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\JoinColumn(name: 'geo_position_id', nullable: true, onDelete: 'SET NULL')]
+    private ?GeoPosition $geoPosition = null;
+
+    public function getGeoPosition(): ?GeoPosition { return $this->geoPosition; }
+    public function setGeoPosition(?GeoPosition $geoPosition): static { $this->geoPosition = $geoPosition; return $this; }
+
+    public function getCoordonnees(): ?\App\Geo\Coordonnees
+    {
+        return $this->geoPosition?->getCoordonnees();
+    }
+
+    public function isGeolocalisee(): bool
+    {
+        return null !== $this->getCoordonnees();
+    }
+
+    /** @return list<ObjectifMission> objectifs obligatoires (ordre d'affichage) */
+    public function getObjectifsObligatoires(): array
+    {
+        return array_values($this->getObjectifs()->filter(static fn (ObjectifMission $o) => $o->isObligatoire())->toArray());
+    }
+
+    /** Tous les objectifs obligatoires sont-ils terminés ? (faux s'il n'y en a aucun) */
+    public function isObjectifsObligatoiresAtteints(): bool
+    {
+        $obligatoires = $this->getObjectifsObligatoires();
+        if ([] === $obligatoires) {
+            return false;
+        }
+        foreach ($obligatoires as $objectif) {
+            if (!$objectif->isTermine()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }

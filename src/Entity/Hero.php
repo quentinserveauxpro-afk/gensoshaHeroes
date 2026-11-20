@@ -491,6 +491,23 @@ class Hero
         return (string) $this->nom;
     }
 
+    // ------------------------------------------------------------------
+    // Ajouts (additifs) — carte réelle : position GPS courante du héros.
+    // positionX / positionY (grille abstraite) restent inchangés.
+    // ------------------------------------------------------------------
+
+    #[ORM\OneToOne(cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\JoinColumn(name: 'geo_position_id', nullable: true, onDelete: 'SET NULL')]
+    private ?GeoPosition $geoPosition = null;
+
+    public function getGeoPosition(): ?GeoPosition { return $this->geoPosition; }
+    public function setGeoPosition(?GeoPosition $geoPosition): static { $this->geoPosition = $geoPosition; return $this; }
+
+    public function getCoordonnees(): ?\App\Geo\Coordonnees
+    {
+        return $this->geoPosition?->getCoordonnees();
+    }
+
     private static function versEntier(?string $decimal): int
     {
         return (int) round((float) $decimal);

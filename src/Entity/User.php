@@ -73,6 +73,27 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getPassword(): ?string { return $this->password; }
     public function setPassword(string $password): static { $this->password = $password; return $this; }
 
+    // ------------------------------------------------------------------
+    // Ajouts (additifs) — gestion des comptes opérateurs.
+    // ------------------------------------------------------------------
+
+    /** Un compte désactivé ne peut plus se connecter ni poursuivre sa session. */
+    #[ORM\Column(options: ['default' => true])]
+    private bool $actif = true;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $motDePasseModifieLe = null;
+
+    public function isActif(): bool { return $this->actif; }
+    public function setActif(bool $actif): static { $this->actif = $actif; return $this; }
+    public function getMotDePasseModifieLe(): ?\DateTimeImmutable { return $this->motDePasseModifieLe; }
+    public function setMotDePasseModifieLe(?\DateTimeImmutable $d): static { $this->motDePasseModifieLe = $d; return $this; }
+
+    public function aLeRole(string $role): bool
+    {
+        return \in_array($role, $this->roles, true);
+    }
+
     public function __serialize(): array
     {
         $data = (array) $this;

@@ -76,6 +76,30 @@ class ObjectifMission
     public function getMission(): ?Mission { return $this->mission; }
     public function setMission(?Mission $mission): static { $this->mission = $mission; return $this; }
 
+    // ------------------------------------------------------------------
+    // Ajouts (additifs) — moteur de simulation.
+    // ------------------------------------------------------------------
+
+    /** Compétence sans laquelle l'objectif est bloqué (null = aucune). */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Aptitude $aptitudeRequise = null;
+
+    /** Statistique déterminante pour la progression (null = moyenne des exigences de la mission). */
+    #[ORM\Column(enumType: \App\Enum\Statistique::class, length: 20, nullable: true)]
+    private ?\App\Enum\Statistique $statistiqueCle = null;
+
+    /** Instant où l'objectif a atteint 100 % (renseigné par le moteur). */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $dateAccomplissement = null;
+
+    public function getAptitudeRequise(): ?Aptitude { return $this->aptitudeRequise; }
+    public function setAptitudeRequise(?Aptitude $a): static { $this->aptitudeRequise = $a; return $this; }
+    public function getStatistiqueCle(): ?\App\Enum\Statistique { return $this->statistiqueCle; }
+    public function setStatistiqueCle(?\App\Enum\Statistique $s): static { $this->statistiqueCle = $s; return $this; }
+    public function getDateAccomplissement(): ?\DateTimeImmutable { return $this->dateAccomplissement; }
+    public function setDateAccomplissement(?\DateTimeImmutable $d): static { $this->dateAccomplissement = $d; return $this; }
+
     /** État d'affichage : termine, en_cours, en_attente. */
     public function getEtat(): string
     {
