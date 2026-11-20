@@ -13,7 +13,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * État de l'infirmerie pour la page et pour le flux temps réel (une requête pour tous les séjours).
  *
  * Entre deux passages du worker, santé et fatigue sont projetées à l'instant de la requête
- * avec les taux enregistrés (calcul pur, sans écriture), comme les positions des héros en
+ * (HeroRecoveryService::etatA, calcul pur sans écriture), comme les positions des héros en
  * déplacement. Les transitions (arrivée, rétablissement, sortie) restent décidées par
  * app:infirmary:update : le navigateur n'en décide jamais.
  */
@@ -70,7 +70,7 @@ final class InfirmerieEtatProvider
     {
         $hero = $sejour->getHero();
         $max = max(0, $hero->getPointsDeVieMaximum());
-        [$sante, $fatigue] = $this->projection($sejour, $now);
+        [$sante, $fatigue, $progressionSoin] = $this->recuperation->etatA($sejour, $now);
         $pct = HeroMedicalEvaluationService::santePourcentage($sante, $max);
         $retour = $this->retour($sejour, $now);
 
@@ -97,8 +97,8 @@ final class InfirmerieEtatProvider
             'secondesRestantes' => StatutSejour::RETOUR_QG === $sejour->getStatut()
                 ? $retour['secondesRestantes'] ?? null
                 : (StatutSejour::RETABLI === $sejour->getStatut() ? 0 : $this->recuperation->secondesRestantes($sejour, $now)),
-            'tauxSanteHeure' => round($sejour->getTauxSante() * 60 * $this->config->facteurTemps, 1),
-            'tauxFatigueHeure' => round($sejour->getTauxFatigue() * 60 * $this->config->facteurTemps, 1),
+            'dureeSoin' => $this->recuperation->dureeTraitement($sejour),
+            'progressionSoin' => (int) floor($progressionSoin * 100),
             'mission' => null === $sejour->getMission() ? null : [
                 'id' => $sejour->getMission()->getId(),
                 'nom' => $sejour->getMission()->getNom(),
@@ -138,25 +138,6 @@ final class InfirmerieEtatProvider
             'arrivee' => $this->qg->coordonnees()->toArray(),
             'position' => $position->toArray(),
             'destination' => $this->qg->nom,
-        ];
-    }
-
-    /** @return array{0: float, 1: float} santé et fatigue projetées à $now (sans écriture) */
-    public function projection(SejourInfirmerie $sejour, \DateTimeImmutable $now): array
-    {
-        $max = max(0, $sejour->getHero()->getPointsDeVieMaximum());
-        $sante = HeroMedicalEvaluationService::bornerSante($sejour->getSanteActuelle(), $max);
-        $fatigue = HeroMedicalEvaluationService::bornerFatigue($sejour->getFatigueActuelle());
-        $depuis = $sejour->getDernierCalculLe();
-        if (StatutSejour::EN_TRAITEMENT !== $sejour->getStatut() || null === $depuis) {
-            return [$sante, $fatigue];
-        }
-        $minutes = max(0.0, ($now->getTimestamp() - $depuis->getTimestamp()) * $this->config->facteurTemps / 60);
-
-        // Jamais au-delà des cibles : le rétablissement est acté par le worker, pas par la lecture.
-        return [
-            min(max($sante, (float) min($sejour->getSanteCible(), $max)), $sante + $sejour->getTauxSante() * $minutes),
-            max(min($fatigue, (float) $sejour->getFatigueCible()), $fatigue - $sejour->getTauxFatigue() * $minutes),
         ];
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Infirmerie;
 
-use App\Entity\Hero;
 use App\Enum\TypeAdmission;
 use App\Repository\HeroRepository;
 use App\Repository\SejourInfirmerieRepository;
@@ -35,9 +34,8 @@ final class InfirmaryUpdateRunner
         private readonly HeroRecoveryService $recuperation,
         private readonly InfirmerieAlerteService $alertes,
         private readonly InfirmerieConfiguration $config,
-        private readonly QgConfiguration $qg,
         private readonly HeroMedicalEvaluationService $medical,
-        private readonly \App\Geo\DistanceCalculator $distances,
+        private readonly InfirmerieContexteProvider $contextes,
         private readonly LockFactory $verrous,
         private readonly ClockInterface $clock,
         private readonly LoggerInterface $logger,
@@ -98,7 +96,7 @@ final class InfirmaryUpdateRunner
     private function actualiserSejours(\DateTimeImmutable $now, RapportInfirmerie $rapport): void
     {
         $sejours = $this->sejours->findActifs();
-        $contexte = new ContexteRecuperation($this->soutiensDisponibles($sejours), \count($sejours));
+        $contexte = $this->contextes->contexte($sejours);
         foreach ($sejours as $sejour) {
             ++$rapport->sejoursActualises;
             foreach ($this->recuperation->actualiser($sejour, $now, $contexte) as $evenement) {
@@ -110,24 +108,5 @@ final class InfirmaryUpdateRunner
                 };
             }
         }
-    }
-
-    /**
-     * Héros disponibles au QG disposant de l'aptitude de soutien médical (une requête).
-     *
-     * @param list<\App\Entity\SejourInfirmerie> $sejours
-     *
-     * @return list<int>
-     */
-    public function soutiensDisponibles(array $sejours = []): array
-    {
-        $patients = array_map(static fn ($s) => (int) $s->getHero()->getId(), $sejours);
-        $qg = $this->qg->coordonnees();
-
-        return array_values(array_map(static fn (Hero $h) => (int) $h->getId(), array_filter(
-            $this->heroes->findAvecAptitude($this->config->aptitudeSoutien),
-            fn (Hero $h) => $h->isDisponible() && !\in_array((int) $h->getId(), $patients, true)
-                && (null === $h->getCoordonnees() || $this->distances->distanceKm($h->getCoordonnees(), $qg) <= QgConfiguration::RAYON_KM),
-        )));
     }
 }
