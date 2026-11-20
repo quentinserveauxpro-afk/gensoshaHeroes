@@ -20,12 +20,6 @@ final readonly class InfirmerieConfiguration
         /** Fatigue (0-100) à partir de laquelle le héros est rapatrié. */
         #[Autowire('%env(float:INFIRMERIE_FATIGUE_CRITIQUE)%')]
         public float $fatigueCritique = 90.0,
-        /** Santé (%) à atteindre pour être déclaré rétabli. */
-        #[Autowire('%env(float:INFIRMERIE_SANTE_SORTIE)%')]
-        public float $santeSortie = 100.0,
-        /** Fatigue maximale pour être déclaré rétabli. */
-        #[Autowire('%env(float:INFIRMERIE_FATIGUE_SORTIE)%')]
-        public float $fatigueSortie = 20.0,
         /** Code de l'aptitude de soutien médical (jamais le nom d'un héros). */
         #[Autowire('%env(INFIRMERIE_APTITUDE_SOUTIEN)%')]
         public string $aptitudeSoutien = 'SUPPORT_MEDICAL',
@@ -47,8 +41,7 @@ final readonly class InfirmerieConfiguration
         return [
             'santeCritique' => $this->santeCritique,
             'fatigueCritique' => $this->fatigueCritique,
-            'santeSortie' => $this->santeSortie,
-            'fatigueSortie' => $this->fatigueSortie,
+            'regleSortie' => HeroMedicalEvaluationService::REGLE_SORTIE,
             'capacite' => $this->capacite,
             'sortieAutomatique' => $this->sortieAutomatique,
         ];

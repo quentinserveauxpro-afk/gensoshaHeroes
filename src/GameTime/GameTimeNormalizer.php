@@ -129,15 +129,15 @@ final class GameTimeNormalizer
 
             return $ligne + ['apres' => $fin, 'action' => 'clôturé (rétabli)'];
         }
-        $duree = $this->tempsSoin->duree($s, $contexte, $s->getDebutTraitementLe() ?? $now);
-        $restant = (int) ceil((1 - $this->progressionAcquise($s)) * $duree);
+        // Travail restant pour la santé et pour la fatigue ; sortie = la plus longue des deux.
+        $restant = $this->recuperation->planRestant($s, $contexte, $now)['total'];
         $nouvelleFin = $now->modify(sprintf('+%d seconds', max(0, $restant)));
         if (null !== $fin && $nouvelleFin >= $fin->modify('-1 second')) {
             return $ligne + ['apres' => $fin, 'action' => 'inchangé'];
         }
         if ($appliquer) {
-            // Valeurs acquises conservées ; le compte à rebours repart de maintenant.
-            $s->enregistrerRecuperation($s->getSanteActuelle(), $s->getFatigueActuelle(), $now, $nouvelleFin);
+            // Valeurs acquises conservées ; rythmes et compte à rebours repartent de maintenant.
+            $this->recuperation->planifier($s, $now, $contexte, false);
             if ($nouvelleFin <= $now) {
                 $this->recuperation->actualiser($s, $now, $contexte);
             }
@@ -146,15 +146,18 @@ final class GameTimeNormalizer
         return $ligne + ['apres' => $nouvelleFin, 'action' => null === $fin ? 'planifié' : 'raccourci'];
     }
 
-    /** Fraction du soin déjà acquise (la plus faible entre santé et fatigue), dans [0, 1]. */
+    /**
+     * Fraction du soin déjà acquise (la plus faible entre santé et fatigue), dans [0, 1].
+     * Cibles de sortie : santé maximale et fatigue nulle.
+     */
     public function progressionAcquise(SejourInfirmerie $s): float
     {
         $max = $s->getHero()->getPointsDeVieMaximum();
         $santeDepart = HeroMedicalEvaluationService::bornerSante($s->getSanteAdmission(), $max);
-        $cibleSante = (float) min($s->getSanteCible(), max(0, $max));
+        $cibleSante = (float) max(0, $max);
         $pSante = $cibleSante > $santeDepart ? ($s->getSanteActuelle() - $santeDepart) / ($cibleSante - $santeDepart) : 1.0;
         $fatigueDepart = HeroMedicalEvaluationService::bornerFatigue($s->getFatigueAdmission());
-        $pFatigue = $fatigueDepart > $s->getFatigueCible() ? ($fatigueDepart - $s->getFatigueActuelle()) / ($fatigueDepart - $s->getFatigueCible()) : 1.0;
+        $pFatigue = $fatigueDepart > 0 ? ($fatigueDepart - $s->getFatigueActuelle()) / $fatigueDepart : 1.0;
 
         return max(0.0, min(1.0, $pSante, $pFatigue));
     }

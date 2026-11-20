@@ -14,10 +14,18 @@ use App\Enum\MotifInfirmerie;
  * Rapatriement requis (par ordre de priorité) :
  *   - 0 point de vie, ou santé ≤ seuil critique         → SANTE_CRITIQUE ;
  *   - fatigue ≥ seuil critique                          → EPUISEMENT.
+ * Sortie de l'infirmerie (règle fixe, non configurable) :
+ *   points de vie == points de vie maximum  ET  fatigue == 0.
+ * Les deux conditions sont obligatoires.
+ *
  * Le serveur est seul juge : le navigateur n'appelle jamais cette décision.
  */
 final readonly class HeroMedicalEvaluationService
 {
+    public const REGLE_SORTIE = 'santé au maximum et fatigue à 0';
+    /** Tolérance des calculs décimaux (les valeurs entières du héros sont exactes). */
+    private const EPSILON = 1e-6;
+
     public function __construct(private InfirmerieConfiguration $config)
     {
     }
@@ -66,21 +74,37 @@ final readonly class HeroMedicalEvaluationService
         };
     }
 
-    /** Points de vie à atteindre pour sortir (arrondi supérieur, jamais au-delà du maximum). */
+    /** Points de vie à atteindre pour sortir : toujours le maximum. */
     public function santeCible(Hero $hero): int
     {
-        $max = max(0, $hero->getPointsDeVieMaximum());
-
-        return min($max, (int) ceil($max * max(0.0, min(100.0, $this->config->santeSortie)) / 100));
+        return max(0, $hero->getPointsDeVieMaximum());
     }
 
+    /** Fatigue à atteindre pour sortir : toujours 0. */
     public function fatigueCible(): int
     {
-        return (int) floor(self::bornerFatigue($this->config->fatigueSortie));
+        return 0;
     }
 
-    public function estRetabli(float $sante, float $fatigue, int $santeCible, int $fatigueCible): bool
+    /** Santé au maximum (et seulement elle) : la fatigue peut rester à éliminer. */
+    public static function santeRetablie(int|float|null $pointsDeVie, int|float|null $maximum): bool
     {
-        return $sante + 1e-6 >= $santeCible && $fatigue - 1e-6 <= $fatigueCible;
+        return (float) $pointsDeVie + self::EPSILON >= max(0.0, (float) $maximum);
+    }
+
+    public static function fatigueEliminee(int|float|null $fatigue): bool
+    {
+        return (float) $fatigue <= self::EPSILON;
+    }
+
+    /** Règle de sortie : points de vie == maximum ET fatigue == 0. */
+    public static function estRetabli(int|float|null $pointsDeVie, int|float|null $maximum, int|float|null $fatigue): bool
+    {
+        return self::santeRetablie($pointsDeVie, $maximum) && self::fatigueEliminee($fatigue);
+    }
+
+    public function heroRetabli(Hero $hero): bool
+    {
+        return self::estRetabli($hero->getPointsDeVie(), $hero->getPointsDeVieMaximum(), $hero->getFatigue());
     }
 }

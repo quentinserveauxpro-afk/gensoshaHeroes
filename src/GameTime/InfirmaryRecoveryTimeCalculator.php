@@ -25,6 +25,13 @@ use App\Service\Mission\EffectiveStatsResolver;
  *   durée     = clamp(round(base × vigueur × admission × soutien × capacité), min, max)
  *
  * Bornes par défaut : 60 s à 900 s (15 min). Déterministe, jamais négative.
+ *
+ * Répartition (durees) : la santé et la fatigue récupèrent chacune à leur rythme, la plus
+ * lourde des deux occupant toute la durée :
+ *   poids santé   = (100 − santé %) / 100 × 0,60 × admission     (0 si santé maximale)
+ *   poids fatigue = fatigue / 100 × 0,40                         (0 si fatigue nulle)
+ *   durée santé   = durée × poids santé / max(poids)  ;  durée fatigue idem
+ * La sortie a lieu à la fin de la plus longue (= durée totale).
  */
 final readonly class InfirmaryRecoveryTimeCalculator
 {
@@ -48,6 +55,32 @@ final readonly class InfirmaryRecoveryTimeCalculator
             $this->config->infirmerieMin,
             $this->config->infirmerieMax,
         );
+    }
+
+    /**
+     * Durées propres à la santé et à la fatigue (secondes) ; total = la plus longue, bornée.
+     *
+     * @return array{sante: int, fatigue: int, total: int}
+     */
+    public function durees(SejourInfirmerie $sejour, ContexteRecuperation $contexte, \DateTimeImmutable $now): array
+    {
+        $total = $this->duree($sejour, $contexte, $now);
+        $hero = $sejour->getHero();
+        $sante = HeroMedicalEvaluationService::santePourcentage($sejour->getSanteAdmission(), $hero->getPointsDeVieMaximum());
+        $fatigue = HeroMedicalEvaluationService::bornerFatigue($sejour->getFatigueAdmission());
+        $poidsSante = HeroMedicalEvaluationService::santeRetablie($sejour->getSanteAdmission(), $hero->getPointsDeVieMaximum())
+            ? 0.0 : (100 - $sante) / 100 * 0.60 * $this->modificateurs($sejour, $contexte, $now)['admission'];
+        $poidsFatigue = $fatigue / 100 * 0.40;
+        $plusLourd = max($poidsSante, $poidsFatigue);
+        if ($plusLourd <= 0) {
+            return ['sante' => 0, 'fatigue' => 0, 'total' => $total];
+        }
+
+        return [
+            'sante' => $poidsSante > 0 ? max(1, (int) round($total * $poidsSante / $plusLourd)) : 0,
+            'fatigue' => $poidsFatigue > 0 ? max(1, (int) round($total * $poidsFatigue / $plusLourd)) : 0,
+            'total' => $total,
+        ];
     }
 
     /** @return array{vigueur: float, admission: float, soutien: float, capacite: float} */
