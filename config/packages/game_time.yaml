@@ -1,0 +1,27 @@
+# Échelle temporelle du jeu (simulation accélérée). Source unique des durées ; chaque valeur
+# peut être surchargée par la variable d'environnement indiquée (.env.local).
+parameters:
+    env(GAME_TIME_HERO_TRAVEL_MIN_SECONDS): '30'
+    env(GAME_TIME_HERO_TRAVEL_MAX_SECONDS): '600'
+    env(GAME_TIME_HERO_TRAVEL_REFERENCE_KM): '1000'
+    env(GAME_TIME_INFIRMARY_MIN_SECONDS): '60'
+    env(GAME_TIME_INFIRMARY_MAX_SECONDS): '900'
+
+    # Déplacement (vers une mission ou retour au QG) : 30 s à 10 min.
+    app.game_time.hero_travel_min_seconds: '%env(int:GAME_TIME_HERO_TRAVEL_MIN_SECONDS)%'
+    app.game_time.hero_travel_max_seconds: '%env(int:GAME_TIME_HERO_TRAVEL_MAX_SECONDS)%'
+    # Distance (km) à partir de laquelle la durée de base atteint le maximum.
+    app.game_time.hero_travel_reference_km: '%env(float:GAME_TIME_HERO_TRAVEL_REFERENCE_KM)%'
+    # Multiplicateur appliqué aux héros possédant l'aptitude de vol (code).
+    app.game_time.flight_modifier: 0.75
+    app.game_time.flight_aptitude: 'VOL'
+
+    # Séjour à l'infirmerie (début du traitement → rétablissement) : 1 à 15 min.
+    app.game_time.infirmary_min_seconds: '%env(int:GAME_TIME_INFIRMARY_MIN_SECONDS)%'
+    app.game_time.infirmary_max_seconds: '%env(int:GAME_TIME_INFIRMARY_MAX_SECONDS)%'
+    # Multiplicateurs : soutien médical disponible au QG, infirmerie saturée.
+    app.game_time.medical_support_modifier: 0.85
+    app.game_time.saturated_capacity_modifier: 1.10
+    # Gravité de l'admission : santé critique ou 0 PV, blessure.
+    app.game_time.critical_severity_modifier: 1.35
+    app.game_time.injury_severity_modifier: 1.10
