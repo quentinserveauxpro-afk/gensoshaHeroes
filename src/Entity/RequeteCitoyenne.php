@@ -276,4 +276,35 @@ class RequeteCitoyenne
 
         return $this;
     }
+
+    // ------------------------------------------------------------------
+    // Ajouts (additifs) — signalement par un citoyen connecté (ROLE_CITOYEN).
+    // Signalement anonyme : nomDemandeur = « Anonyme », prénom jamais enregistré.
+    // ------------------------------------------------------------------
+
+    #[ORM\Column(length: 120, nullable: true)]
+    #[Assert\Length(max: 120)]
+    private ?string $prenomDemandeur = null;
+
+    #[ORM\Column(options: ['default' => false])]
+    private bool $anonyme = false;
+
+    /** Super-vilain dont la présence est signalée (parmi ceux enregistrés). */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Villain $villainSignale = null;
+
+    /** Compte citoyen auteur du signalement (seul autorisé à en consulter la confirmation). */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $citoyen = null;
+
+    public function getPrenomDemandeur(): ?string { return $this->prenomDemandeur; }
+    public function setPrenomDemandeur(?string $p): static { $this->prenomDemandeur = $p; return $this; }
+    public function isAnonyme(): bool { return $this->anonyme; }
+    public function setAnonyme(bool $a): static { $this->anonyme = $a; return $this; }
+    public function getVillainSignale(): ?Villain { return $this->villainSignale; }
+    public function setVillainSignale(?Villain $v): static { $this->villainSignale = $v; return $this; }
+    public function getCitoyen(): ?User { return $this->citoyen; }
+    public function setCitoyen(?User $u): static { $this->citoyen = $u; return $this; }
 }
