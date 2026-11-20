@@ -17,6 +17,7 @@
         {{ include('components/_badge.html.twig', {label: d.motifLabel, tone: d.motif == 'SANTE_CRITIQUE' ? 'danger' : (d.motif == 'EPUISEMENT' ? 'warn' : 'muted')}) }}
         <span class="badge badge--danger" data-champ="alerte-sante" {% if not d.santeCritique %}hidden{% endif %}>Santé critique</span>
         <span class="badge badge--warn" data-champ="alerte-fatigue" {% if not d.epuise %}hidden{% endif %}>Épuisement</span>
+        <span class="badge badge--{{ d.reposTermine ? 'ok' : 'warn' }}" data-champ="phase-recuperation" {% if not d.phaseRecuperation %}hidden{% endif %}>{{ d.phaseRecuperation }}</span>
     </div>
 
     <div class="gauge gauge--{{ ton_sante }} infirmary-gauge" data-champ="jauge-sante">
@@ -28,7 +29,7 @@
     </div>
     <div class="gauge gauge--{{ ton_fatigue }} gauge--thin infirmary-gauge" data-champ="jauge-fatigue">
         <div class="gauge__head"><span>{{ include('components/_icon.html.twig', {name: 'battery_alert'}) }} Fatigue</span>
-            <span data-champ="fatigue-texte">{{ d.fatigue }} %</span></div>
+            <span data-champ="fatigue-texte">{{ d.fatigue }} / 100</span></div>
         <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ d.fatigue }}" aria-label="Fatigue de {{ hero.nom }}" data-champ="fatigue-barre">
             <div class="gauge__fill" style="width: {{ d.fatigue }}%"></div>
         </div>
@@ -36,16 +37,18 @@
 
     <dl class="metrics">
         <dt>Admission</dt><dd><time datetime="{{ d.admisLe }}">{{ sejour.admisLe|date('d/m H:i') }}</time></dd>
-        <dt data-champ="restant-libelle">{{ d.statut == 'RETOUR_QG' ? 'Arrivée au QG dans' : 'Soin restant' }}</dt>
-        <dd data-champ="restant">{{ d.statut == 'RETABLI' ? 'Rétabli' : (d.secondesRestantes is null ? '—' : d.secondesRestantes|minuterie) }}</dd>
+        <dt data-champ="restant-libelle">{{ d.statut == 'RETOUR_QG' ? 'Arrivée au QG dans' : 'Rétablissement complet dans' }}</dt>
+        <dd data-champ="restant">{{ d.reposTermine ? 'Rétabli' : (d.secondesRestantes is null ? '—' : d.secondesRestantes|minuterie) }}</dd>
+        <dt>Santé restante</dt><dd data-champ="restant-sante">{{ d.restantSante is null ? '—' : (d.restantSante == 0 ? 'Rétablie' : d.restantSante|minuterie) }}</dd>
+        <dt>Fatigue restante</dt><dd data-champ="restant-fatigue">{{ d.restantFatigue is null ? '—' : (d.restantFatigue == 0 ? 'Éliminée' : d.restantFatigue|minuterie) }}</dd>
         <dt>Fin estimée</dt><dd data-champ="fin">{% set fin = d.statut == 'RETOUR_QG' ? (d.retour.arriveePrevue ?? null) : d.sortiePrevue %}{{ fin ? fin|date('H:i:s') : '—' }}</dd>
         <dt>Mission d'origine</dt><dd>{% if d.mission %}<a href="{{ d.mission.url }}">{{ d.mission.nom|tronquer(28) }}</a>{% else %}—{% endif %}</dd>
         <dt>Durée du soin</dt><dd data-champ="duree-soin">{{ d.dureeSoin|minuterie }}</dd>
     </dl>
 
     <div class="gauge gauge--ok gauge--thin infirmary-gauge" data-champ="jauge-soin" {% if d.statut not in ['EN_TRAITEMENT', 'RETABLI'] %}hidden{% endif %}>
-        <div class="gauge__head"><span>{{ include('components/_icon.html.twig', {name: 'healing'}) }} Progression du soin</span><span data-champ="soin-texte">{{ d.progressionSoin }} %</span></div>
-        <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ d.progressionSoin }}" aria-label="Progression du soin de {{ hero.nom }}" data-champ="soin-barre">
+        <div class="gauge__head"><span>{{ include('components/_icon.html.twig', {name: 'healing'}) }} Récupération globale</span><span data-champ="soin-texte">{{ d.progressionSoin }} %</span></div>
+        <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ d.progressionSoin }}" aria-label="Récupération globale de {{ hero.nom }}" data-champ="soin-barre">
             <div class="gauge__fill" style="width: {{ d.progressionSoin }}%"></div>
         </div>
     </div>
@@ -61,7 +64,7 @@
     </div>
 
     {% if peut_sortir %}
-        <form method="post" action="{{ path('app_infirmerie_sortie', {id: sejour.id}) }}" data-champ="sortie" {% if d.statut != 'RETABLI' %}hidden{% endif %}>
+        <form method="post" action="{{ path('app_infirmerie_sortie', {id: sejour.id}) }}" data-champ="sortie" {% if not d.sortieAutorisee %}hidden{% endif %}>
             <input type="hidden" name="_token" value="{{ csrf_token('sortie-infirmerie' ~ sejour.id) }}">
             <button type="submit" class="btn btn--dark btn--sm">{{ include('components/_icon.html.twig', {name: 'logout'}) }} Valider la sortie</button>
         </form>

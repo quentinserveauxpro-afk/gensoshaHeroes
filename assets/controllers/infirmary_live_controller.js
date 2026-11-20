@@ -70,12 +70,23 @@ export default class extends Controller {
         this.jauge(champ('jauge-sante'), champ('sante-barre'), s.sante, s.sante <= 20 ? 'danger' : (s.sante <= 50 ? 'warn' : 'ok'));
         champ('sante-texte').textContent = `${s.pv} / ${s.pvMax} PV (${s.sante} %)`;
         this.jauge(champ('jauge-fatigue'), champ('fatigue-barre'), s.fatigue, s.fatigue >= 90 ? 'danger' : (s.fatigue >= 50 ? 'warn' : 'ok'));
-        champ('fatigue-texte').textContent = `${s.fatigue} %`;
+        champ('fatigue-texte').textContent = `${s.fatigue} / 100`;
         champ('alerte-sante').hidden = !s.santeCritique;
         champ('alerte-fatigue').hidden = !s.epuise;
+        // Indicateur calculé par le serveur : « Santé rétablie, récupération de fatigue en cours »
+        // (santé maximale, fatigue > 0) ou « Repos terminé » (santé maximale ET fatigue nulle).
+        const phase = champ('phase-recuperation');
+        if (phase) {
+            phase.hidden = !s.phaseRecuperation;
+            phase.textContent = s.phaseRecuperation ?? '';
+            phase.className = `badge badge--${s.reposTermine ? 'ok' : 'warn'}`;
+        }
 
-        champ('restant-libelle').textContent = s.statut === 'RETOUR_QG' ? 'Arrivée au QG dans' : 'Soin restant';
-        champ('restant').textContent = s.statut === 'RETABLI' ? 'Rétabli' : this.minuterie(s.secondesRestantes);
+        champ('restant-libelle').textContent = s.statut === 'RETOUR_QG' ? 'Arrivée au QG dans' : 'Rétablissement complet dans';
+        champ('restant').textContent = s.reposTermine ? 'Rétabli' : this.minuterie(s.secondesRestantes);
+        const reste = (v, fini) => (v === null || v === undefined ? '—' : (v === 0 ? fini : this.minuterie(v)));
+        champ('restant-sante').textContent = reste(s.restantSante, 'Rétablie');
+        champ('restant-fatigue').textContent = reste(s.restantFatigue, 'Éliminée');
         const fin = s.statut === 'RETOUR_QG' ? s.retour?.arriveePrevue : s.sortiePrevue;
         champ('fin').textContent = fin ? new Date(fin).toLocaleTimeString('fr-FR') : '—';
         champ('duree-soin').textContent = this.minuterie(s.dureeSoin);
@@ -93,7 +104,8 @@ export default class extends Controller {
             champ('retour-texte').textContent = `${this.minuterie(s.retour.secondesRestantes)} • ${String(s.retour.distanceRestanteKm).replace('.', ',')} km restants • position ${s.retour.position.lat.toFixed(4).replace('.', ',')}, ${s.retour.position.lng.toFixed(4).replace('.', ',')}`;
         }
         const sortie = champ('sortie');
-        if (sortie) sortie.hidden = s.statut !== 'RETABLI';
+        // Bouton affiché seulement si le serveur autorise la sortie (il revérifie à la validation).
+        if (sortie) sortie.hidden = !s.sortieAutorisee;
     }
 
     jauge(conteneur, barre, valeur, ton) {

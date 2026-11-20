@@ -73,6 +73,12 @@ final class InfirmerieEtatProvider
         [$sante, $fatigue, $progressionSoin] = $this->recuperation->etatA($sejour, $now);
         $pct = HeroMedicalEvaluationService::santePourcentage($sante, $max);
         $retour = $this->retour($sejour, $now);
+        $pv = (int) floor($sante + 1e-6);
+        $fatigueAffichee = (int) ceil($fatigue - 1e-6);
+        $soigne = \in_array($sejour->getStatut(), [StatutSejour::EN_TRAITEMENT, StatutSejour::RETABLI], true);
+        $santeRetablie = $soigne && HeroMedicalEvaluationService::santeRetablie($pv, $max);
+        $reposTermine = $santeRetablie && HeroMedicalEvaluationService::fatigueEliminee($fatigueAffichee);
+        $restants = $this->recuperation->restants($sejour, $now);
 
         return [
             'id' => $sejour->getId(),
@@ -81,22 +87,34 @@ final class InfirmerieEtatProvider
             'initiales' => $hero->getInitiales(),
             'rang' => $hero->getRang(),
             'statut' => $sejour->getStatut()->value,
-            'statutLabel' => $sejour->getStatut()->label(),
+            // Séjour déclaré rétabli selon l'ancienne règle alors qu'il reste de la fatigue : reprise.
+            'statutLabel' => StatutSejour::RETABLI === $sejour->getStatut() && !$reposTermine ? 'Récupération en cours' : $sejour->getStatut()->label(),
             'tone' => $sejour->getStatut()->tone(),
             'motif' => $sejour->getMotif()->value,
             'motifLabel' => $sejour->getMotif()->label(),
             'typeAdmission' => $sejour->getTypeAdmission()->label(),
-            'pv' => (int) floor($sante + 1e-6),
+            'pv' => $pv,
             'pvMax' => $max,
             'sante' => (int) floor($pct + 1e-6),
-            'fatigue' => (int) ceil($fatigue - 1e-6),
+            'fatigue' => $fatigueAffichee,
             'santeCritique' => $pct <= $this->config->santeCritique,
             'epuise' => $fatigue >= $this->config->fatigueCritique,
             'admisLe' => $sejour->getAdmisLe()->format(\DATE_ATOM),
             'sortiePrevue' => $sejour->getSortiePrevueLe()?->format(\DATE_ATOM),
             'secondesRestantes' => StatutSejour::RETOUR_QG === $sejour->getStatut()
                 ? $retour['secondesRestantes'] ?? null
-                : (StatutSejour::RETABLI === $sejour->getStatut() ? 0 : $this->recuperation->secondesRestantes($sejour, $now)),
+                : $this->recuperation->secondesRestantes($sejour, $now),
+            // Temps restant par composante ; la sortie suit la plus longue des deux.
+            'restantSante' => $soigne ? $restants['sante'] : null,
+            'restantFatigue' => $soigne ? $restants['fatigue'] : null,
+            'santeRetablie' => $santeRetablie,
+            'reposTermine' => $reposTermine,
+            'phaseRecuperation' => match (true) {
+                $reposTermine => 'Repos terminé',
+                $santeRetablie => 'Santé rétablie, récupération de fatigue en cours',
+                default => null,
+            },
+            'sortieAutorisee' => $this->recuperation->sortieAutorisee($sejour),
             'dureeSoin' => $this->recuperation->dureeTraitement($sejour),
             'progressionSoin' => (int) floor($progressionSoin * 100),
             'mission' => null === $sejour->getMission() ? null : [
