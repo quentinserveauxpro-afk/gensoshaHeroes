@@ -1,0 +1,19 @@
+{# Résumé de l'équipe affectée à une mission. Paramètres : mission, temps_reel (bool : cibles d'actualisation) #}
+<ul class="team-list" aria-label="Équipe affectée">
+    {% for affectation in mission.affectationsActives %}
+        {% set hero = affectation.hero %}
+        <li class="team-list__item" data-equipe-hero="{{ hero.id }}">
+            {{ include('components/_hero_avatar.html.twig', {hero: hero, size: 36, status: true}) }}
+            <span class="team-list__body">
+                <span class="row row--between">
+                    <strong>{{ hero.nom }}</strong>
+                    <span class="badge badge--muted" data-deplacement-statut>{{ affectation.statut.label }}</span>
+                </span>
+                {{ include('components/_health_gauge.html.twig', {pv: hero.pointsDeVie, pv_max: hero.pointsDeVieMaximum, nom: hero.nom, compact: true, hero_id: hero.id}) }}
+                <span class="label-md muted" data-deplacement-texte>{{ affectation.role.label }} • {{ hero.role.label }}</span>
+            </span>
+        </li>
+    {% else %}
+        <li class="muted">Aucun héros affecté.</li>
+    {% endfor %}
+</ul>

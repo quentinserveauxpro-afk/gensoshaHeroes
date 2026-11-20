@@ -3,7 +3,7 @@
 {% block content %}
     <div class="row row--between">
         <h1 class="headline-lg">Missions</h1>
-        {% if is_granted('ROLE_ADMIN') %}<a class="btn btn--dark" href="{{ path('app_mission_new') }}">{{ include('components/_icon.html.twig', {name: 'add'}) }} Nouvelle mission</a>{% endif %}
+        {% if is_granted('ROLE_MISSION_OPERATOR') %}<a class="btn btn--dark" href="{{ path('app_mission_new') }}">{{ include('components/_icon.html.twig', {name: 'add'}) }} Nouvelle mission</a>{% endif %}
     </div>
     <nav class="chip-group" aria-label="Filtrer par statut">
         <a href="{{ path('app_mission_index') }}" {% if not statut %}aria-current="true"{% endif %}>Toutes</a>

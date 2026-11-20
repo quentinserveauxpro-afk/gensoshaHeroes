@@ -5,10 +5,13 @@ namespace App\Controller;
 use App\Entity\Mission;
 use App\Enum\HeroRole;
 use App\Enum\MissionStatut;
+use App\Movement\HeroMovementService;
+use App\Security\Voter\MissionVoter;
 use App\Repository\MissionRepository;
 use App\Service\Mission\DeploymentException;
 use App\Service\Mission\MissionDeploymentService;
 use App\Service\Mission\SquadBuilder;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,7 +19,8 @@ use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-#[IsGranted('ROLE_OPERATOR')]
+// Constitution et déploiement des équipes : opérateurs héros (et rôles qui en héritent).
+#[IsGranted('ROLE_HERO_OPERATOR')]
 #[Route('/squad-builder')]
 final class SquadBuilderController extends AbstractController
 {
@@ -59,7 +63,8 @@ final class SquadBuilderController extends AbstractController
     }
 
     #[Route('/{id}/deployer', name: 'app_squad_builder_deploy', requirements: ['id' => '\d+'], methods: ['POST'])]
-    public function deployer(Mission $mission, Request $request, MissionDeploymentService $deploiement): Response
+    #[IsGranted(MissionVoter::DEPLOYER, 'mission')]
+    public function deployer(Mission $mission, Request $request, MissionDeploymentService $deploiement, HeroMovementService $mouvements, EntityManagerInterface $em): Response
     {
         if (!$this->isCsrfTokenValid('deployer'.$mission->getId(), $request->getPayload()->getString('_token'))) {
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
@@ -77,7 +82,15 @@ final class SquadBuilderController extends AbstractController
             return $this->redirectToRoute('app_squad_builder_mission', ['id' => $mission->getId(), 'equipe' => implode(',', $ids)], Response::HTTP_SEE_OTHER);
         }
 
+        // Départ immédiat des héros vers la position réelle de la mission (ligne droite simulée).
+        $departs = $mouvements->demarrerPourMission($mission);
+        $em->flush();
         $this->addFlash('success', sprintf('Équipe déployée sur « %s » : %d héros en route.', $mission->getNom(), \count($ids)));
+        if (!$mission->isGeolocalisee()) {
+            $this->addFlash('danger', 'Mission non géolocalisée : les déplacements démarreront dès que sa position sera renseignée.');
+        } elseif ([] === $departs) {
+            $this->addFlash('success', 'Les héros sont déjà sur place.');
+        }
 
         return $this->redirectToRoute('app_tactical_center', ['mission' => $mission->getId()], Response::HTTP_SEE_OTHER);
     }

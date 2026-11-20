@@ -1,0 +1,14 @@
+{# Jauge de santé d'un héros. Paramètres : pv, pv_max, nom, compact (bool), hero_id (actualisation temps réel) #}
+{% set pv_max = pv_max|default(100) %}
+{% set pct = pv_max > 0 ? (pv / pv_max * 100)|round : 0 %}
+{% set ton = pct <= 25 ? 'danger' : (pct <= 50 ? 'warn' : 'ok') %}
+{% set etat = pv <= 0 ? 'Hors de combat' : (pct <= 25 ? 'Critique' : (pct <= 50 ? 'Blessé' : 'Opérationnel')) %}
+<div class="gauge gauge--{{ ton }}{% if compact|default(false) %} gauge--thin{% endif %} health"{% if hero_id|default(null) %} data-sante-hero="{{ hero_id }}"{% endif %}>
+    <div class="gauge__head">
+        <span>{{ include('components/_icon.html.twig', {name: 'favorite'}) }} <span data-sante-etat>{{ etat }}</span></span>
+        <span data-sante-texte>{{ pv }} / {{ pv_max }} PV</span>
+    </div>
+    <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="{{ pv_max }}" aria-valuenow="{{ pv }}" aria-label="Santé de {{ nom|default('ce héros') }}" aria-valuetext="{{ pv }} points de vie sur {{ pv_max }} ({{ etat|lower }})">
+        <div class="gauge__fill" style="width: {{ pct }}%"></div>
+    </div>
+</div>

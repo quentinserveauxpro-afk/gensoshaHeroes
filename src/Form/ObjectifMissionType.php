@@ -2,7 +2,11 @@
 
 namespace App\Form;
 
+use App\Entity\Aptitude;
 use App\Entity\ObjectifMission;
+use App\Enum\Statistique;
+use Symfony\Bridge\Doctrine\Form\Type\EntityType;
+use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
@@ -21,7 +25,10 @@ final class ObjectifMissionType extends AbstractType
             ->add('progression', RangeType::class, ['label' => 'Progression (%)', 'empty_data' => '0', 'attr' => ['min' => 0, 'max' => 100, 'step' => 5]])
             ->add('ordreAffichage', IntegerType::class, ['label' => 'Ordre', 'empty_data' => '0', 'attr' => ['min' => 0]])
             ->add('obligatoire', CheckboxType::class, ['label' => 'Obligatoire', 'required' => false])
-            ->add('termine', CheckboxType::class, ['label' => 'Terminé', 'required' => false]);
+            ->add('termine', CheckboxType::class, ['label' => 'Terminé', 'required' => false])
+            // Ajouts (moteur de simulation) : facultatifs.
+            ->add('aptitudeRequise', EntityType::class, ['label' => 'Compétence indispensable', 'class' => Aptitude::class, 'choice_label' => 'nom', 'required' => false, 'placeholder' => 'Aucune', 'help' => 'Sans elle dans l\'équipe sur place, l\'objectif est bloqué.'])
+            ->add('statistiqueCle', EnumType::class, ['label' => 'Statistique déterminante', 'class' => Statistique::class, 'required' => false, 'placeholder' => 'Exigences de la mission', 'choice_label' => static fn (Statistique $s) => $s->label()]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void

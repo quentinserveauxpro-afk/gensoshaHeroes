@@ -1,0 +1,13 @@
+{# Un objectif de mission, en version compacte (carte, panneau temps réel).
+   Paramètres : objectif (ObjectifMission ou tableau {id,titre,progression,termine,obligatoire,aptitude}) #}
+{% set prog = objectif.termine ? 100 : objectif.progression %}
+{% set etat = objectif.termine ? 'termine' : (prog > 0 ? 'en_cours' : 'en_attente') %}
+<li class="objective objective--{{ etat }}" data-objectif="{{ objectif.id }}">
+    <span class="objective__icon">{{ include('components/_icon.html.twig', {
+        name: etat == 'termine' ? 'check_circle' : (etat == 'en_cours' ? 'progress_activity' : 'radio_button_unchecked'),
+        label: etat == 'termine' ? 'Terminé' : (etat == 'en_cours' ? 'En cours' : 'En attente'),
+    }) }}</span>
+    <span class="objective__title">{{ objectif.titre }}{% if not objectif.obligatoire %} <span class="muted">(facultatif)</span>{% endif %}</span>
+    <span class="objective__pct" data-objectif-texte>{{ etat == 'termine' ? 'Atteint' : prog ~ ' %' }}</span>
+    {{ include('components/_gauge.html.twig', {value: prog, thin: true, tone: etat == 'termine' ? 'ok' : 'warn', aria_label: 'Progression : ' ~ objectif.titre}) }}
+</li>

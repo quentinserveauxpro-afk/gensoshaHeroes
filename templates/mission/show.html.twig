@@ -13,6 +13,8 @@
         <p class="muted" style="margin:0">{{ mission.description }}</p>
         <div class="chip-group">
             <span class="chip chip--req">{{ include('components/_icon.html.twig', {name: 'location_on'}) }} {{ mission.localisation }} (X {{ mission.positionX }} / Y {{ mission.positionY }})</span>
+            {% if mission.coordonnees %}<span class="chip chip--req">{{ include('components/_icon.html.twig', {name: 'my_location'}) }} {{ mission.coordonnees.latitude|number_format(5, ',') }}, {{ mission.coordonnees.longitude|number_format(5, ',') }}</span>
+            {% else %}<span class="chip chip--req text-warn">{{ include('components/_icon.html.twig', {name: 'wrong_location'}) }} Non géolocalisée</span>{% endif %}
             {% for stat, valeur in mission.statsRequises %}<span class="chip chip--req">{{ enum('App\\Enum\\Statistique').from(stat).label }} ≥ {{ valeur }}</span>{% endfor %}
             {% for a in mission.aptitudesRequises %}<span class="chip chip--req">{{ a.nom }}</span>{% endfor %}
             <span class="chip chip--req">Équipe {{ mission.tailleEquipeMinimale }}–{{ mission.tailleEquipeMaximale }}</span>
@@ -30,13 +32,15 @@
                 <h2 id="obj-titre" class="headline-md">Objectifs</h2>
                 <span class="label-md">Progression globale : {{ mission.progression }}%</span>
             </div>
-            {{ include('components/_objective_list.html.twig', {objectifs: mission.objectifs, mission: mission, editable: not mission.statut.closed}) }}
+            {{ include('components/_objective_list.html.twig', {objectifs: mission.objectifs, mission: mission, editable: not mission.statut.closed and mission.statut.value != 'EN_COURS' and (is_granted('ROLE_OPERATOR') or is_granted('ROLE_MISSION_OPERATOR'))}) }}
+            {% if mission.statut.value == 'EN_COURS' %}<p class="label-md muted" style="margin:0">Mission en cours : la progression est calculée par le moteur de simulation.</p>{% endif %}
             {% if objectifForm %}
                 <hr class="divider">
                 <h3 class="headline-sm">Ajouter un objectif</h3>
                 {{ form_start(objectifForm, {attr: {class: 'form-grid'}}) }}
                     {{ form_row(objectifForm.titre) }}{{ form_row(objectifForm.description) }}{{ form_row(objectifForm.progression) }}
                     {{ form_row(objectifForm.ordreAffichage) }}{{ form_row(objectifForm.obligatoire) }}{{ form_row(objectifForm.termine) }}
+                    {{ form_row(objectifForm.aptitudeRequise) }}{{ form_row(objectifForm.statistiqueCle) }}
                     <div class="span-all"><button type="submit" class="btn btn--soft">Ajouter</button></div>
                 {{ form_end(objectifForm) }}
             {% endif %}
@@ -60,20 +64,56 @@
                     <li class="muted">Aucune affectation.</li>
                 {% endfor %}
             </ul>
-            {% if not mission.statut.closed and mission.statut.value != 'EN_COURS' %}
+            {% if not mission.statut.closed and mission.statut.value != 'EN_COURS' and is_granted('MISSION_DEPLOYER', mission) %}
                 <a class="btn btn--dark" href="{{ path('app_squad_builder_mission', {id: mission.id}) }}">{{ include('components/_icon.html.twig', {name: 'group_add'}) }} Affecter des héros (Squad Builder)</a>
             {% endif %}
         </section>
     </div>
 
-    {% if is_granted('ROLE_ADMIN') %}
+    {% if mission.statut.value == 'EN_COURS' or simulation %}
+        {% set en_direct = mission.statut.value == 'EN_COURS' %}
+        <section class="card stack" aria-labelledby="sim-titre"{% if en_direct %} data-controller="mission-live" data-mission-live-id-value="{{ mission.id }}"{% endif %}>
+            <div class="row row--between">
+                <h2 id="sim-titre" class="headline-md">{{ include('components/_icon.html.twig', {name: 'monitor_heart'}) }} {{ en_direct ? 'Suivi en temps réel' : 'Déroulé de la mission' }}</h2>
+                <span class="row">{% if en_direct %}{{ include('components/_realtime.html.twig') }}{% endif %}<span class="badge badge--muted" data-mission-live-target="phase">{{ phase|capitalize }}</span></span>
+            </div>
+            <div class="grid grid-3" style="gap:1rem">
+                <div class="kpi"><span class="label-sm">Taux de réussite (direct)</span><span class="kpi__value" data-mission-live-target="taux">{{ mission.tauxDeReussite }} %</span></div>
+                <div class="kpi"><span class="label-sm">Objectifs obligatoires</span><span class="kpi__value" data-mission-live-target="progression">{{ mission.progression }} %</span></div>
+                <div class="kpi"><span class="label-sm">Menace</span><span class="kpi__value" data-mission-live-target="menace">{{ simulation and simulation.dateEngagement ? simulation.menaceActuelle|round : '—' }}</span></div>
+            </div>
+            {{ include('components/_team_selection.html.twig', {mission: mission}) }}
+            <ol class="timeline" data-mission-live-target="journal" aria-live="polite">
+                {% for e in (simulation ? simulation.journal : [])|reverse %}
+                    <li class="text-{{ e.niveau == 'danger' ? 'danger' : (e.niveau == 'ok' ? 'ok' : 'muted') }}"><time class="label-md muted">{{ e.t|date('H:i:s') }}</time> {{ e.message }}</li>
+                {% else %}
+                    <li class="muted">En attente de l'arrivée de l'équipe sur place.</li>
+                {% endfor %}
+            </ol>
+        </section>
+    {% endif %}
+
+    {% if positionForm %}
+        <section class="card stack-sm" aria-labelledby="pos-titre">
+            <h2 id="pos-titre" class="headline-sm">{{ include('components/_icon.html.twig', {name: 'my_location'}) }} Position réelle de la mission</h2>
+            {{ form_start(positionForm, {attr: {class: 'form-grid', novalidate: 'novalidate'}}) }}
+                {{ form_row(positionForm.adresse) }}{{ form_row(positionForm.codePostal) }}{{ form_row(positionForm.ville) }}
+                {{ form_row(positionForm.latitude) }}{{ form_row(positionForm.longitude) }}
+                <div class="span-all"><button type="submit" class="btn btn--soft">Enregistrer la position</button></div>
+            {{ form_end(positionForm) }}
+        </section>
+    {% endif %}
+
+    {% set gestion = is_granted('ROLE_MISSION_OPERATOR') %}
+    {% set lancement = is_granted('ROLE_HERO_OPERATOR') %}
+    {% if gestion or lancement %}
         <section class="card row" aria-label="Cycle de vie de la mission">
-            <a class="btn btn--soft" href="{{ path('app_mission_edit', {id: mission.id}) }}">{{ include('components/_icon.html.twig', {name: 'edit'}) }} Modifier</a>
+            {% if gestion %}<a class="btn btn--soft" href="{{ path('app_mission_edit', {id: mission.id}) }}">{{ include('components/_icon.html.twig', {name: 'edit'}) }} Modifier</a>{% endif %}
             {% set actions = [] %}
-            {% if mission.statut.value == 'BROUILLON' %}{% set actions = actions|merge([['publier', 'Publier', 'btn--soft', null]]) %}{% endif %}
-            {% if mission.statut.value in ['BROUILLON', 'EN_ATTENTE'] %}{% set actions = actions|merge([['lancer', 'Lancer', 'btn--primary', null]]) %}{% endif %}
-            {% if mission.statut.value == 'EN_COURS' %}{% set actions = actions|merge([['cloturer', 'Clôturer : succès', 'btn--primary', 'succes'], ['cloturer', 'Clôturer : échec', 'btn--secondary', 'echec']]) %}{% endif %}
-            {% if not mission.statut.closed %}{% set actions = actions|merge([['annuler', 'Annuler la mission', 'btn--danger', null]]) %}{% endif %}
+            {% if gestion and mission.statut.value == 'BROUILLON' %}{% set actions = actions|merge([['publier', 'Publier', 'btn--soft', null]]) %}{% endif %}
+            {% if lancement and mission.statut.value in ['BROUILLON', 'EN_ATTENTE'] %}{% set actions = actions|merge([['lancer', 'Lancer', 'btn--primary', null]]) %}{% endif %}
+            {% if gestion and mission.statut.value == 'EN_COURS' %}{% set actions = actions|merge([['cloturer', 'Clôturer : succès', 'btn--primary', 'succes'], ['cloturer', 'Clôturer : échec', 'btn--secondary', 'echec']]) %}{% endif %}
+            {% if gestion and not mission.statut.closed %}{% set actions = actions|merge([['annuler', 'Annuler la mission', 'btn--danger', null]]) %}{% endif %}
             {% for a in actions %}
                 <form method="post" action="{{ path('app_mission_transition', {id: mission.id, action: a[0]}) }}" class="inline">
                     <input type="hidden" name="_token" value="{{ csrf_token(a[0] ~ mission.id) }}">

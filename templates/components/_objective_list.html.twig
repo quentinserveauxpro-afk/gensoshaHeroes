@@ -19,7 +19,7 @@
                         <input id="prog-{{ objectif.id }}" type="range" name="progression" min="0" max="100" step="5" value="{{ objectif.progression }}" style="flex:1">
                         <button type="submit" class="btn btn--soft btn--sm">Mettre à jour</button>
                     </form>
-                    {% if is_granted('ROLE_ADMIN') %}
+                    {% if is_granted('ROLE_MISSION_OPERATOR') %}
                         <form method="post" action="{{ path('app_mission_objectif_delete', {id: mission.id, objectif: objectif.id}) }}" class="inline">
                             <input type="hidden" name="_token" value="{{ csrf_token('supprimer-objectif' ~ objectif.id) }}">
                             <button type="submit" class="btn-link text-danger" aria-label="Supprimer l'objectif {{ objectif.titre }}">{{ include('components/_icon.html.twig', {name: 'delete'}) }}</button>
