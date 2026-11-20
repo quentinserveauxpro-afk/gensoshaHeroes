@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-#[IsGranted('ROLE_OPERATOR')]
+#[IsGranted('ROLE_STAFF')]
 final class AlerteController extends AbstractController
 {
     #[Route('/alertes/{id}/acquitter', name: 'app_alerte_ack', requirements: ['id' => '\d+'], methods: ['POST'])]

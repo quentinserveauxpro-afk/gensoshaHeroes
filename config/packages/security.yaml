@@ -11,9 +11,17 @@ security:
                 class: App\Entity\User
                 property: email
 
+    # Rôles historiques conservés (ROLE_OPERATOR, ROLE_ADMIN) ; rôles ajoutés :
+    # - ROLE_STAFF            : socle commun à tout le personnel interne (accès aux écrans de suivi) ;
+    # - ROLE_MISSION_OPERATOR : requêtes citoyennes, création et gestion des missions ;
+    # - ROLE_HERO_OPERATOR    : roster, Squad Builder, déploiement, suivi des héros.
+    # ROLE_OPERATOR (opérateur polyvalent historique) garde exactement ses droits antérieurs.
     role_hierarchy:
-        ROLE_OPERATOR: ROLE_USER
-        ROLE_ADMIN: ROLE_OPERATOR
+        ROLE_STAFF: ROLE_USER
+        ROLE_MISSION_OPERATOR: ROLE_STAFF
+        ROLE_HERO_OPERATOR: ROLE_STAFF
+        ROLE_OPERATOR: [ROLE_USER, ROLE_STAFF, ROLE_HERO_OPERATOR]
+        ROLE_ADMIN: [ROLE_OPERATOR, ROLE_MISSION_OPERATOR, ROLE_HERO_OPERATOR]
 
     firewalls:
         dev:
@@ -23,6 +31,7 @@ security:
         main:
             lazy: true
             provider: app_user_provider
+            user_checker: App\Security\UserChecker
             form_login:
                 login_path: app_login
                 check_path: app_login
@@ -41,8 +50,9 @@ security:
     # Note: Only the *first* matching rule is applied
     access_control:
         - { path: ^/login$, roles: PUBLIC_ACCESS }
+        - { path: ^/demande-intervention, roles: PUBLIC_ACCESS }
         - { path: ^/admin, roles: ROLE_ADMIN }
-        - { path: ^/, roles: ROLE_OPERATOR }
+        - { path: ^/, roles: ROLE_STAFF }
 
 when@test:
     security:

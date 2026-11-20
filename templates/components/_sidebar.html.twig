@@ -1,10 +1,11 @@
 {% set route = app.current_route %}
+{# Liens filtrés par rôle : simple confort d'affichage, l'accès réel est contrôlé côté serveur. #}
 {% set liens = [
-    {route: 'app_tactical_center', label: 'Centre Tactique', icon: 'radar', actif: route == 'app_tactical_center'},
-    {route: 'app_squad_builder', label: 'Squad Builder', icon: 'groups', actif: route starts with 'app_squad_builder'},
-    {route: 'app_hero_index', label: 'Roster des Héros', icon: 'shield_person', actif: route starts with 'app_hero'},
-    {route: 'app_mission_index', label: 'Missions', icon: 'flag', actif: route starts with 'app_mission'},
-    {route: 'app_requete_index', label: 'Requêtes Citoyennes', icon: 'sensors', actif: route starts with 'app_requete'},
+    {route: 'app_tactical_center', label: 'Centre Tactique', icon: 'radar', actif: route == 'app_tactical_center', visible: true},
+    {route: 'app_squad_builder', label: 'Squad Builder', icon: 'groups', actif: route starts with 'app_squad_builder', visible: is_granted('ROLE_HERO_OPERATOR')},
+    {route: 'app_hero_index', label: 'Roster des Héros', icon: 'shield_person', actif: route starts with 'app_hero', visible: true},
+    {route: 'app_mission_index', label: 'Missions', icon: 'flag', actif: route starts with 'app_mission', visible: true},
+    {route: 'app_requete_index', label: 'Requêtes Citoyennes', icon: 'sensors', actif: route starts with 'app_requete', visible: is_granted('REQUETE_CONSULTER')},
 ] %}
 <aside class="sidebar" aria-label="Navigation principale">
     <a class="brand" href="{{ path('app_tactical_center') }}">
@@ -16,7 +17,7 @@
     </a>
     {{ include('components/_badge.html.twig', {label: 'Réseau défense actif', tone: 'muted', dot: true, class: 'network-badge'}) }}
     <nav class="nav">
-        {% for lien in liens %}
+        {% for lien in liens|filter(l => l.visible) %}
             <a class="nav__link" href="{{ path(lien.route) }}" {% if lien.actif %}aria-current="page"{% endif %}>
                 {{ include('components/_icon.html.twig', {name: lien.icon}) }} {{ lien.label }}
             </a>
@@ -37,7 +38,7 @@
                 <span class="avatar" style="--s:40px">{{ app.user.nom|slice(0, 2)|upper }}</span>
                 <span>
                     <span class="operator__name">{{ app.user.nom }}</span><br>
-                    <span class="label-md muted">{{ app.user.fonction ?? (is_granted('ROLE_ADMIN') ? 'Administrateur' : 'Opérateur') }}</span>
+                    <span class="label-md muted">{{ app.user.fonction ?? role_libelle(app.user.roles|filter(r => r != 'ROLE_USER')|first|default('ROLE_USER')) }}</span>
                 </span>
             </div>
         {% endif %}

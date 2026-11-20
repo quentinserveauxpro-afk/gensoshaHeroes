@@ -16,7 +16,7 @@ use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-#[IsGranted('ROLE_OPERATOR')]
+#[IsGranted('ROLE_STAFF')]
 #[Route('/heros')]
 final class HeroController extends AbstractController
 {

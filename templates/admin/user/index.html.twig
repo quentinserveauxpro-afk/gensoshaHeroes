@@ -2,16 +2,30 @@
 {% block title %}Utilisateurs{% endblock %}
 {% block content %}
     <div class="row row--between">
-        <h1 class="headline-lg">Utilisateurs</h1>
-        <a class="btn btn--dark" href="{{ path('app_admin_user_new') }}">{{ include('components/_icon.html.twig', {name: 'person_add'}) }} Nouvel utilisateur</a>
+        <h1 class="headline-lg">Comptes opérateurs</h1>
+        <a class="btn btn--dark" href="{{ path('app_admin_user_new') }}">{{ include('components/_icon.html.twig', {name: 'person_add'}) }} Nouveau compte</a>
     </div>
     <div class="table-wrap"><table class="table">
-        <caption class="sr-only">Utilisateurs</caption>
-        <thead><tr><th scope="col">E-mail</th><th scope="col">Nom</th><th scope="col">Rôles</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <caption class="sr-only">Comptes internes</caption>
+        <thead><tr><th scope="col">E-mail</th><th scope="col">Nom</th><th scope="col">Type de compte</th><th scope="col">État</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>{% for u in users %}
-            <tr><td>{{ u.email }}</td><td>{{ u.nom }}<br><span class="label-md muted">{{ u.fonction }}</span></td>
-                <td>{% for r in u.roles|filter(r => r != 'ROLE_USER') %}{{ include('components/_badge.html.twig', {label: r|replace({'ROLE_': ''}), tone: r == 'ROLE_ADMIN' ? 'solid' : 'ok'}) }} {% endfor %}</td>
-                <td><a class="btn btn--soft btn--sm" href="{{ path('app_admin_user_edit', {id: u.id}) }}">Modifier</a></td></tr>
+            <tr>
+                <td>{{ u.email }}</td>
+                <td>{{ u.nom }}<br><span class="label-md muted">{{ u.fonction }}</span></td>
+                <td>{% for r in u.roles|filter(r => r != 'ROLE_USER') %}{{ include('components/_badge.html.twig', {label: role_libelle(r), tone: r == 'ROLE_ADMIN' ? 'solid' : 'ok'}) }} {% endfor %}</td>
+                <td>{{ include('components/_status_badge.html.twig', {label: u.actif ? 'Actif' : 'Désactivé', tone: u.actif ? 'ok' : 'danger'}) }}
+                    {% if u.motDePasseModifieLe %}<br><span class="label-md muted">Mot de passe modifié le {{ u.motDePasseModifieLe|date('d/m/Y') }}</span>{% endif %}</td>
+                <td class="row">
+                    <a class="btn btn--soft btn--sm" href="{{ path('app_admin_user_edit', {id: u.id}) }}">Modifier</a>
+                    <a class="btn btn--soft btn--sm" href="{{ path('app_admin_user_password', {id: u.id}) }}">Mot de passe</a>
+                    {% if u != app.user %}
+                        <form method="post" action="{{ path('app_admin_user_toggle', {id: u.id}) }}" class="inline">
+                            <input type="hidden" name="_token" value="{{ csrf_token('activation' ~ u.id) }}">
+                            <button type="submit" class="btn btn--sm {{ u.actif ? 'btn--danger' : 'btn--primary' }}">{{ u.actif ? 'Désactiver' : 'Activer' }}</button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
         {% endfor %}</tbody>
     </table></div>
 {% endblock %}

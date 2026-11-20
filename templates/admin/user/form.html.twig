@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ titre }}{% endblock %}
+{% block content %}
+    <nav class="label-md" aria-label="Fil d'Ariane"><a href="{{ path('app_admin_user_index') }}">Utilisateurs</a> › {{ creation ? 'Nouveau compte' : compte.email }}</nav>
+    <h1 class="headline-lg">{{ titre }}</h1>
+    {{ form_start(form, {attr: {class: 'card stack', novalidate: 'novalidate'}}) }}
+        {{ form_errors(form) }}
+        <div class="form-grid">
+            {{ form_row(form.email) }}
+            {{ form_row(form.nom) }}
+            {{ form_row(form.fonction) }}
+            {{ form_row(form.actif) }}
+        </div>
+        <fieldset class="stack-sm">
+            <legend class="headline-sm">Type de compte</legend>
+            {{ form_widget(form.typeCompte) }}
+            {{ form_errors(form.typeCompte) }}
+            <ul class="label-md muted" style="margin:0">
+                <li><strong>Opérateur missions</strong> : requêtes citoyennes (analyse, qualification, rejet, conversion), création et suivi des missions. Ne peut pas déployer de héros.</li>
+                <li><strong>Opérateur héros</strong> : roster, Squad Builder, déploiement et suivi des héros. Ne traite pas les requêtes citoyennes.</li>
+                <li><strong>Administrateur</strong> : tous les droits, dont la gestion des comptes.</li>
+            </ul>
+            {% if not creation and compte.aLeRole('ROLE_OPERATOR') %}
+                <p class="label-md text-warn" style="margin:0">Ce compte possède le rôle historique « Opérateur polyvalent ». Choisir un type le remplace.</p>
+            {% endif %}
+        </fieldset>
+        {% if form.plainPassword is defined %}
+            <div class="form-grid">{{ form_row(form.plainPassword.first) }}{{ form_row(form.plainPassword.second) }}</div>
+        {% endif %}
+        <div class="row">
+            <button type="submit" class="btn btn--primary">Enregistrer</button>
+            <a class="btn btn--soft" href="{{ path('app_admin_user_index') }}">Annuler</a>
+            {% if not creation %}<a class="btn-link" href="{{ path('app_admin_user_password', {id: compte.id}) }}">Réinitialiser le mot de passe</a>{% endif %}
+        </div>
+    {{ form_end(form) }}
+{% endblock %}
