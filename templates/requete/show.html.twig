@@ -44,7 +44,10 @@
             <section class="card stack-sm" aria-labelledby="rq-contact">
                 <h2 id="rq-contact" class="headline-sm">Demandeur</h2>
                 <dl class="facts">
-                    <div><dt>Nom</dt><dd>{{ requete.nomDemandeur }}</dd></div>
+                    <div><dt>Nom</dt><dd>{{ requete.anonyme ? 'Signalement anonyme' : requete.nomDemandeur }}</dd></div>
+                    {% if requete.prenomDemandeur and not requete.anonyme %}<div><dt>Prénom</dt><dd>{{ requete.prenomDemandeur }}</dd></div>{% endif %}
+                    {% if requete.villainSignale %}<div><dt>Super-vilain signalé</dt><dd>{{ requete.villainSignale.nom }}</dd></div>{% endif %}
+                    {% if requete.citoyen %}<div><dt>Origine</dt><dd>Espace citoyen</dd></div>{% endif %}
                     <div><dt>E-mail</dt><dd>{{ requete.emailDemandeur ?? '—' }}</dd></div>
                     <div><dt>Téléphone</dt><dd>{{ requete.telephoneDemandeur ?? '—' }}</dd></div>
                     <div><dt>Consentement</dt><dd>{{ requete.consentementLe ? 'Donné le ' ~ requete.consentementLe|date('d/m/Y H:i') : '—' }}</dd></div>

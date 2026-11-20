@@ -1,0 +1,36 @@
+{% extends 'layout/public.html.twig' %}
+{% block title %}Signaler un incident{% endblock %}
+{% block content %}
+    <section class="card card--tinted stack-sm" aria-labelledby="sig-titre">
+        <span class="label-sm">Espace citoyen</span>
+        <h1 id="sig-titre" class="headline-md">Signaler un incident</h1>
+        <p class="muted" style="margin:0">Un opérateur examine chaque signalement avant toute intervention. Les champs marqués d'un astérisque sont obligatoires.</p>
+    </section>
+
+    {{ form_start(form, {attr: {class: 'card stack public-form', novalidate: 'novalidate', 'data-controller': 'signalement'}}) }}
+        {{ form_errors(form) }}
+        <fieldset class="stack-sm">
+            <legend class="headline-sm">{{ include('components/_icon.html.twig', {name: 'person'}) }} Votre identité</legend>
+            {{ form_row(form.anonyme) }}
+            <div class="grid grid-2" style="gap:1rem">{{ form_row(form.nom) }}{{ form_row(form.prenom) }}</div>
+            <p class="label-md muted" style="margin:0" data-signalement-target="identite">Obligatoires si vous ne restez pas anonyme.</p>
+        </fieldset>
+
+        <fieldset class="stack-sm">
+            <legend class="headline-sm">{{ include('components/_icon.html.twig', {name: 'location_on'}) }} Le lieu</legend>
+            {{ form_row(form.adresse) }}
+            <div class="grid grid-2" style="gap:1rem">{{ form_row(form.codePostal) }}{{ form_row(form.ville) }}</div>
+        </fieldset>
+
+        <fieldset class="stack-sm">
+            <legend class="headline-sm">{{ include('components/_icon.html.twig', {name: 'report'}) }} L'incident</legend>
+            {{ form_row(form.categorie) }}
+            {{ form_row(form.presenceVilain) }}
+            {{ form_row(form.villain) }}
+            {{ form_row(form.description) }}
+        </fieldset>
+
+        <p class="label-md muted" style="margin:0">La date et l'heure du signalement sont enregistrées automatiquement.</p>
+        <button type="submit" class="btn btn--primary btn--block">{{ include('components/_icon.html.twig', {name: 'send'}) }} Envoyer le signalement</button>
+    {{ form_end(form) }}
+{% endblock %}

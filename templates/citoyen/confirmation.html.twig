@@ -1,0 +1,19 @@
+{% extends 'layout/public.html.twig' %}
+{% block title %}Signalement transmis{% endblock %}
+{% block content %}
+    <section class="card stack" role="status" aria-labelledby="conf-titre">
+        <span class="kpi__icon" style="width:48px;height:48px">{{ include('components/_icon.html.twig', {name: 'check_circle'}) }}</span>
+        <h1 id="conf-titre" class="headline-md">Votre signalement a bien été transmis</h1>
+        <p style="margin:0">Numéro de votre requête : <strong class="mono" data-test="reference">{{ requete.reference }}</strong>. Conservez-le si vous recontactez le service.</p>
+        <dl class="facts">
+            <div><dt>Envoyé le</dt><dd><time datetime="{{ requete.dateCreation|date('c') }}">{{ requete.dateCreation|date('d/m/Y à H:i') }}</time></dd></div>
+            <div><dt>Catégorie</dt><dd>{{ requete.categorieIncident.label }}</dd></div>
+            <div><dt>Lieu</dt><dd>{{ requete.adresseComplete }}</dd></div>
+            {% if requete.villainSignale %}<div><dt>Super-vilain signalé</dt><dd>{{ requete.villainSignale.nom }}</dd></div>{% endif %}
+            {# L'identité d'un signalement anonyme n'est ni enregistrée ni affichée. #}
+            <div><dt>Identité</dt><dd>{{ requete.anonyme ? 'Signalement anonyme' : requete.prenomDemandeur ~ ' ' ~ requete.nomDemandeur }}</dd></div>
+        </dl>
+        <p class="muted" style="margin:0">Un opérateur va l'examiner. Votre signalement ne peut plus être modifié ni supprimé après son envoi.</p>
+        <a class="btn btn--soft" href="{{ path('app_citoyen_signalement') }}">Signaler un autre incident</a>
+    </section>
+{% endblock %}

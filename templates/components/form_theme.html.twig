@@ -3,7 +3,7 @@
 {% block form_row -%}
     {%- set widget_attr = {} -%}
     {%- if help is not empty -%}{%- set widget_attr = {attr: {'aria-describedby': id ~ '_help'}} -%}{%- endif -%}
-    <div class="field{% if not valid %} field--error{% endif %}{% if expanded is defined and expanded %} span-all{% endif %}">
+    <div class="field{% if not valid %} field--error{% endif %}{% if expanded is defined and expanded %} span-all{% endif %}{{ block('row_attr_classe') }}"{{ block('row_attr_autres') }}>
         {{- form_label(form) -}}
         {{- form_widget(form, widget_attr) -}}
         {{- form_help(form) -}}
@@ -12,8 +12,11 @@
 {%- endblock form_row %}
 
 {% block checkbox_row -%}
-    <div class="field{% if not valid %} field--error{% endif %}">
-        <label class="choice">{{ form_widget(form) }} {{ label is not same as(false) ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) }}</label>
+    {%- set widget_attr = {} -%}
+    {%- if help is not empty -%}{%- set widget_attr = {attr: attr|merge({'aria-describedby': id ~ '_help'})} -%}{%- endif -%}
+    <div class="field{% if not valid %} field--error{% endif %}{{ block('row_attr_classe') }}"{{ block('row_attr_autres') }}>
+        <label class="choice">{{ form_widget(form, widget_attr) }} {{ label is not same as(false) ? (translation_domain is same as(false) ? label : label|trans({}, translation_domain)) }}</label>
+        {{- form_help(form) -}}
         {{- form_errors(form) -}}
     </div>
 {%- endblock checkbox_row %}
@@ -38,3 +41,7 @@
         </ul>
     {%- endif -%}
 {%- endblock form_errors %}
+
+{# Attributs de ligne (row_attr) : classe ajoutée à « field », autres attributs recopiés. #}
+{%- block row_attr_classe -%}{% if row_attr.class is defined %} {{ row_attr.class }}{% endif %}{%- endblock row_attr_classe -%}
+{%- block row_attr_autres -%}{% for nom, valeur in row_attr|filter((v, k) => k != 'class') %} {{ nom }}="{{ valeur }}"{% endfor %}{%- endblock row_attr_autres -%}
