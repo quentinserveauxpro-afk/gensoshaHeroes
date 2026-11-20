@@ -85,7 +85,8 @@ Pour que les héros se déplacent et que les missions évoluent, lancez le moteu
 php bin/console app:missions:update --watch      # un passage toutes les 3 s (Ctrl+C pour arrêter)
 ```
 
-Ce worker exécute aussi le passage de l'infirmerie (`app:infirmary:update`). Après une mise à jour
+Ce worker exécute aussi le passage de l'infirmerie (`app:infirmary:update`). Un trajet dure au plus
+10 minutes et un soin au plus 15 minutes ([docs/echelle-temporelle.md](docs/echelle-temporelle.md)). Après une mise à jour
 du code ou du schéma, arrêtez-le et relancez-le.
 
 ## Données de démonstration
@@ -128,6 +129,7 @@ MySQL de test, décrite dans [docs/testing.md](docs/testing.md).
 | [routes.md](docs/routes.md) | Table des routes |
 | [commands.md](docs/commands.md) | Commandes utiles |
 | [contributing.md](docs/contributing.md) | Règles de contribution, Conventional Commits |
+| [echelle-temporelle.md](docs/echelle-temporelle.md) | Durées accélérées des trajets (≤ 10 min) et des soins (≤ 15 min), normalisation |
 | [infirmerie.md](docs/infirmerie.md) | Infirmerie : seuils, rapatriement, récupération, commande périodique, droits |
 | [carte-temps-reel.md](docs/carte-temps-reel.md) | Carte réelle, déplacements, moteur de simulation, temps réel, demandes publiques, rôles opérateurs |
 

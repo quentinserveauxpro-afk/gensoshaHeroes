@@ -32,8 +32,9 @@ Ce document décrit les évolutions ajoutées sans modifier aucun élément exis
   mission. Le point de départ est leur dernière position connue, ou le QG (Paris) à défaut.
 - Calculs :
   - `DistanceCalculator` : formule de Haversine, interpolation sur le grand cercle ;
-  - `EstimatedArrivalCalculator` : vitesse = (60 + 2,4 × mobilité) km/h, réduite jusqu'à 30 % par la
-    fatigue ; accélération de la simulation via `SIMULATION_FACTEUR_TEMPS`.
+  - `HeroTravelTimeCalculator` : durée accélérée de 30 s à 10 min selon la distance, la mobilité,
+    la fatigue, la santé et le vol (voir [echelle-temporelle.md](echelle-temporelle.md)) ;
+    `SIMULATION_FACTEUR_TEMPS` ne règle plus que le rythme des étapes de combat.
 - **Le trajet est une simulation en ligne droite, pas un itinéraire routier.**
 - La position est une fonction pure du temps : un rechargement de page reprend exactement au bon
   endroit. Seul le moteur acte l'arrivée : il enregistre l'heure réelle, passe l'affectation

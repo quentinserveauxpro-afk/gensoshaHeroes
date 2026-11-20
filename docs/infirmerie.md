@@ -56,11 +56,8 @@ Conséquences d'une admission (`HeroRepatriationService::admettre()`) :
 | `INFIRMERIE_FATIGUE_CRITIQUE` | 90 | fatigue ≥ seuil → rapatriement |
 | `INFIRMERIE_SANTE_SORTIE` | 100 | santé (%) à atteindre |
 | `INFIRMERIE_FATIGUE_SORTIE` | 20 | fatigue maximale de sortie |
-| `INFIRMERIE_SANTE_POINTS` / `INFIRMERIE_FATIGUE_POINTS` / `INFIRMERIE_PERIODE_MINUTES` | 2 / 3 / 5 | 2 PV et −3 fatigue toutes les 5 minutes (avant modificateurs) |
-| `INFIRMERIE_FACTEUR_TEMPS` | 1 | accélération (60 : une minute réelle vaut une heure) |
-| `INFIRMERIE_BONUS_SOUTIEN` | 0.5 | +50 % si un héros de soutien est disponible au QG |
 | `INFIRMERIE_APTITUDE_SOUTIEN` | `SUPPORT_MEDICAL` | code d'aptitude du soutien (jamais un nom de héros) |
-| `INFIRMERIE_CAPACITE` | 6 | lits ; au-delà, récupération ralentie |
+| `INFIRMERIE_CAPACITE` | 6 | lits ; au-delà, soin plus long |
 | `INFIRMERIE_SORTIE_AUTOMATIQUE` | 0 | 1 : sortie automatique ; 0 : validation par un opérateur héros |
 | `INFIRMERIE_FATIGUE_PAR_ETAPE` | 0.1 | fatigue gagnée par étape de combat de 5 s simulées |
 | `QG_LATITUDE` / `QG_LONGITUDE` / `QG_NOM` | 48.8566 / 2.3522 / QG Genosha — Paris | destination des rapatriements (source unique, aussi utilisée par la carte et les déplacements) |
@@ -68,22 +65,8 @@ Conséquences d'une admission (`HeroRepatriationService::admettre()`) :
 Santé (%) = `pointsDeVie / pointsDeVieMaximum × 100`, bornée à [0, 100] ; maximum nul ou valeurs
 manquantes → 0 %. La santé reste dans [0, PV max], la fatigue dans [0, 100].
 
-Taux de récupération (par minute simulée) :
-
-```
-santé   = SANTE_POINTS / PERIODE × vigueur × niveau × gravité × soutien × capacité
-fatigue = FATIGUE_POINTS / PERIODE × vigueur × soutien × capacité
-  vigueur  = 0,75 + 0,5 × vigueur effective / 100   (bonus actifs inclus)
-  niveau   = 1 + min(niveau, 100) / 200
-  gravité  = 0,6 si admis à 0 PV ; 0,8 si santé critique ou blessure ; 1 sinon
-  soutien  = 1 + BONUS si un autre héros possédant l'aptitude de soutien est disponible au QG
-             (à moins de 1 km du QG, ou sans position) ; 1 + BONUS / 2 si seul le patient la possède
-  capacité = min(1, max(0,5, lits / patients))
-```
-
-Aucune récupération pendant le retour. Le calcul porte sur l'intervalle
-`[dernierCalculLe, maintenant]` (à la seconde entière) : relancer ne change rien, un arrêt du
-serveur est rattrapé au passage suivant, l'arrivée et le rétablissement sont datés exactement.
+Durées de trajet et de soin (30 s à 10 min, 1 à 15 min), formules et récupération progressive :
+voir [echelle-temporelle.md](echelle-temporelle.md). Aucune récupération pendant le retour au QG.
 
 ## Commande périodique
 
