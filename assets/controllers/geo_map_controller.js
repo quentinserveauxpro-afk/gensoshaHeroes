@@ -179,7 +179,7 @@ export default class extends Controller {
             missionNom: mission ? mission.nom : 'Aucune',
             deplacementTexte: d ? `${d.statutLabel} (${d.progression} %)` : (h.affectation ?? '—'),
             distanceTexte: d ? `${this.km(d.distanceRestanteKm)} sur ${this.km(d.distanceTotaleKm)}` : (h.distanceMissionKm !== null ? this.km(h.distanceMissionKm) : '—'),
-            etaTexte: d && d.statut === 'EN_DEPLACEMENT' ? `${this.duree(d.secondesRestantes)} (${new Date(d.arriveePrevue).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})` : (d && d.arriveeReelle ? `Arrivé à ${new Date(d.arriveeReelle).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : '—'),
+            etaTexte: d && d.statut === 'EN_DEPLACEMENT' ? `${this.duree(d.secondesRestantes)} (arrivée ${new Date(d.arriveePrevue).toLocaleTimeString('fr-FR')})` : (d && d.arriveeReelle ? `Arrivé (${new Date(d.arriveeReelle).toLocaleTimeString('fr-FR')})` : '—'),
         }, { url: h.url });
         this.jauge(n, 'sante', h.sante, h.sante <= 25 ? 'danger' : (h.sante <= 50 ? 'warn' : 'ok'));
         n.querySelector('[data-tone-champ]')?.classList.add(`badge--${h.tone}`);
@@ -291,12 +291,13 @@ export default class extends Controller {
         return `${Number(valeur).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km`;
     }
 
+    /* Minuterie « MM:SS » (09:42, 00:08) ; jamais négative, NaN ni infinie. */
     duree(secondes) {
-        const s = Math.max(0, Math.round(secondes));
-        const h = Math.floor(s / 3600);
-        const m = Math.floor((s % 3600) / 60);
-        if (h > 0) return `${h} h ${String(m).padStart(2, '0')} min`;
-        if (m > 0) return `${m} min ${String(s % 60).padStart(2, '0')} s`;
-        return `${s} s`;
+        const n = Number(secondes);
+        if (secondes === null || secondes === undefined || !Number.isFinite(n)) return '—';
+        const s = Math.max(0, Math.round(n));
+        const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+        const ss = String(s % 60).padStart(2, '0');
+        return s >= 3600 ? `${Math.floor(s / 3600)}:${mm}:${ss}` : `${mm}:${ss}`;
     }
 }

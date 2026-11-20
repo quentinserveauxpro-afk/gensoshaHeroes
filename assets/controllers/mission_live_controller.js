@@ -53,7 +53,7 @@ export default class extends Controller {
                 const texte = li.querySelector('[data-deplacement-texte]');
                 if (texte && d) {
                     texte.textContent = d.statut === 'EN_DEPLACEMENT'
-                        ? `${d.distanceRestanteKm.toLocaleString('fr-FR')} km restants • arrivée ${new Date(d.arriveePrevue).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                        ? `${d.distanceRestanteKm.toLocaleString('fr-FR')} km restants • ${this.minuterie(d.secondesRestantes)} (arrivée ${new Date(d.arriveePrevue).toLocaleTimeString('fr-FR')})`
                         : `${h.santeLabel} • sur place`;
                 }
             });
@@ -89,5 +89,13 @@ export default class extends Controller {
             piste.setAttribute('aria-valuenow', String(valeur ?? pct));
             if (texte) piste.setAttribute('aria-valuetext', texte);
         }
+    }
+
+    /* Minuterie « MM:SS » ; jamais négative, NaN ni infinie. */
+    minuterie(secondes) {
+        const n = Number(secondes);
+        if (secondes === null || secondes === undefined || !Number.isFinite(n)) return '—';
+        const s = Math.max(0, Math.round(n));
+        return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
     }
 }

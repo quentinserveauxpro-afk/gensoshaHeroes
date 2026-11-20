@@ -256,4 +256,26 @@ final class InfirmerieTest extends AppWebTestCase
         self::assertSelectorTextContains('.flash--danger', 'médicalement indisponible');
         self::assertSame(0, $this->em->getRepository(AffectationMission::class)->count([]));
     }
+
+    public function testComptesARebours(): void
+    {
+        $soigne = $this->heroPersiste(['nom' => 'Soigné', 'pv' => 40]);
+        $sejour = $this->sejour($soigne);
+        $sejour->enregistrerRecuperation(40.0, 50.0, new \DateTimeImmutable(), new \DateTimeImmutable('+252 seconds'));
+        self::persister($this->em, $sejour);
+        $this->sejour($this->heroPersiste(['nom' => 'Rétabli']), statut: StatutSejour::RETABLI);
+        $this->connecter('ROLE_HERO_OPERATOR');
+
+        $this->client->request('GET', '/infirmerie');
+        self::assertMatchesRegularExpression('/^0[34]:\d\d$/', trim($this->client->getCrawler()->filter('[data-sejour="'.$sejour->getId().'"] [data-champ="restant"]')->text()));
+        self::assertAnySelectorTextContains('[data-champ="restant"]', 'Rétabli');
+
+        $this->client->request('GET', '/api/temps-reel/etat');
+        foreach (json_decode((string) $this->client->getResponse()->getContent(), true)['infirmerie']['sejours'] as $s) {
+            self::assertGreaterThanOrEqual(0, $s['secondesRestantes'] ?? 0);
+            self::assertLessThanOrEqual(900, $s['secondesRestantes'] ?? 0);
+            self::assertGreaterThanOrEqual(0, $s['progressionSoin']);
+            self::assertLessThanOrEqual(100, $s['progressionSoin']);
+        }
+    }
 }

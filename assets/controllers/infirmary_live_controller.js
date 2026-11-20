@@ -74,9 +74,15 @@ export default class extends Controller {
         champ('alerte-sante').hidden = !s.santeCritique;
         champ('alerte-fatigue').hidden = !s.epuise;
 
-        champ('restant-libelle').textContent = s.statut === 'RETOUR_QG' ? 'Arrivée au QG' : 'Rétablissement';
-        champ('restant').textContent = s.statut === 'RETABLI' ? 'Atteint' : (s.secondesRestantes === null ? '—' : `dans ${this.duree(s.secondesRestantes)}`);
-        champ('taux').textContent = `${s.tauxSanteHeure} PV/h • −${s.tauxFatigueHeure} fatigue/h`;
+        champ('restant-libelle').textContent = s.statut === 'RETOUR_QG' ? 'Arrivée au QG dans' : 'Soin restant';
+        champ('restant').textContent = s.statut === 'RETABLI' ? 'Rétabli' : this.minuterie(s.secondesRestantes);
+        const fin = s.statut === 'RETOUR_QG' ? s.retour?.arriveePrevue : s.sortiePrevue;
+        champ('fin').textContent = fin ? new Date(fin).toLocaleTimeString('fr-FR') : '—';
+        champ('duree-soin').textContent = this.minuterie(s.dureeSoin);
+        const soin = champ('jauge-soin');
+        soin.hidden = !['EN_TRAITEMENT', 'RETABLI'].includes(s.statut);
+        this.jauge(soin, champ('soin-barre'), s.progressionSoin, 'ok');
+        champ('soin-texte').textContent = `${s.progressionSoin} %`;
 
         const retour = champ('retour');
         retour.hidden = !s.retour;
@@ -84,7 +90,7 @@ export default class extends Controller {
             const barre = champ('retour-barre');
             barre.setAttribute('aria-valuenow', String(s.retour.progression));
             barre.firstElementChild.style.width = `${s.retour.progression}%`;
-            champ('retour-texte').textContent = `${String(s.retour.distanceRestanteKm).replace('.', ',')} km restants • position ${s.retour.position.lat.toFixed(4).replace('.', ',')}, ${s.retour.position.lng.toFixed(4).replace('.', ',')}`;
+            champ('retour-texte').textContent = `${this.minuterie(s.retour.secondesRestantes)} • ${String(s.retour.distanceRestanteKm).replace('.', ',')} km restants • position ${s.retour.position.lat.toFixed(4).replace('.', ',')}, ${s.retour.position.lng.toFixed(4).replace('.', ',')}`;
         }
         const sortie = champ('sortie');
         if (sortie) sortie.hidden = s.statut !== 'RETABLI';
@@ -101,6 +107,16 @@ export default class extends Controller {
         if (!this.hasAnnonceTarget || this.annonceTarget.textContent === texte) return;
         this.annonceTarget.hidden = false;
         this.annonceTarget.textContent = texte;
+    }
+
+    /* Minuterie « MM:SS » ; jamais négative, NaN ni infinie (valeurs fournies par le serveur). */
+    minuterie(secondes) {
+        const n = Number(secondes);
+        if (secondes === null || secondes === undefined || !Number.isFinite(n)) return '—';
+        const s = Math.max(0, Math.round(n));
+        const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+        const ss = String(s % 60).padStart(2, '0');
+        return s >= 3600 ? `${Math.floor(s / 3600)}:${mm}:${ss}` : `${mm}:${ss}`;
     }
 
     duree(secondes) {

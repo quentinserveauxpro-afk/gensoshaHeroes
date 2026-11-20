@@ -36,11 +36,19 @@
 
     <dl class="metrics">
         <dt>Admission</dt><dd><time datetime="{{ d.admisLe }}">{{ sejour.admisLe|date('d/m H:i') }}</time></dd>
-        <dt data-champ="restant-libelle">{{ d.statut == 'RETOUR_QG' ? 'Arrivée au QG' : 'Rétablissement' }}</dt>
-        <dd data-champ="restant">{{ d.statut == 'RETABLI' ? 'Atteint' : (d.secondesRestantes is null ? '—' : 'dans ' ~ d.secondesRestantes|duree_lisible) }}</dd>
+        <dt data-champ="restant-libelle">{{ d.statut == 'RETOUR_QG' ? 'Arrivée au QG dans' : 'Soin restant' }}</dt>
+        <dd data-champ="restant">{{ d.statut == 'RETABLI' ? 'Rétabli' : (d.secondesRestantes is null ? '—' : d.secondesRestantes|minuterie) }}</dd>
+        <dt>Fin estimée</dt><dd data-champ="fin">{% set fin = d.statut == 'RETOUR_QG' ? (d.retour.arriveePrevue ?? null) : d.sortiePrevue %}{{ fin ? fin|date('H:i:s') : '—' }}</dd>
         <dt>Mission d'origine</dt><dd>{% if d.mission %}<a href="{{ d.mission.url }}">{{ d.mission.nom|tronquer(28) }}</a>{% else %}—{% endif %}</dd>
-        <dt>Récupération</dt><dd data-champ="taux">{{ d.tauxSanteHeure }} PV/h • −{{ d.tauxFatigueHeure }} fatigue/h</dd>
+        <dt>Durée du soin</dt><dd data-champ="duree-soin">{{ d.dureeSoin|minuterie }}</dd>
     </dl>
+
+    <div class="gauge gauge--ok gauge--thin infirmary-gauge" data-champ="jauge-soin" {% if d.statut not in ['EN_TRAITEMENT', 'RETABLI'] %}hidden{% endif %}>
+        <div class="gauge__head"><span>{{ include('components/_icon.html.twig', {name: 'healing'}) }} Progression du soin</span><span data-champ="soin-texte">{{ d.progressionSoin }} %</span></div>
+        <div class="gauge__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ d.progressionSoin }}" aria-label="Progression du soin de {{ hero.nom }}" data-champ="soin-barre">
+            <div class="gauge__fill" style="width: {{ d.progressionSoin }}%"></div>
+        </div>
+    </div>
 
     <div class="panel stack-sm" data-champ="retour" {% if not d.retour %}hidden{% endif %}>
         <span class="label-sm">{{ include('components/_icon.html.twig', {name: 'route'}) }} Retour vers le QG</span>
@@ -49,7 +57,7 @@
                 <div class="gauge__fill" style="width: {{ d.retour.progression ?? 0 }}%"></div>
             </div>
         </div>
-        <span class="label-md" data-champ="retour-texte">{% if d.retour %}{{ d.retour.distanceRestanteKm }} km restants • position {{ d.retour.position.lat|number_format(4, ',') }}, {{ d.retour.position.lng|number_format(4, ',') }}{% endif %}</span>
+        <span class="label-md" data-champ="retour-texte">{% if d.retour %}{{ d.retour.secondesRestantes|minuterie }} • {{ d.retour.distanceRestanteKm }} km restants • position {{ d.retour.position.lat|number_format(4, ',') }}, {{ d.retour.position.lng|number_format(4, ',') }}{% endif %}</span>
     </div>
 
     {% if peut_sortir %}

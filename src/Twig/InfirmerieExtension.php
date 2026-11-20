@@ -58,6 +58,23 @@ final class InfirmerieExtension
         };
     }
 
+    /**
+     * Minuterie « MM:SS » (09:42, 00:08) ; « H:MM:SS » au-delà d'une heure ; tiret si inconnue.
+     * Jamais négative, jamais NaN ni infinie.
+     */
+    #[AsTwigFilter('minuterie')]
+    public static function minuterie(int|float|null $secondes): string
+    {
+        if (null === $secondes || !is_finite((float) $secondes)) {
+            return '—';
+        }
+        $s = max(0, (int) round($secondes));
+
+        return $s >= 3600
+            ? sprintf('%d:%02d:%02d', intdiv($s, 3600), intdiv($s % 3600, 60), $s % 60)
+            : sprintf('%02d:%02d', intdiv($s, 60), $s % 60);
+    }
+
     /** Durée lisible (« 2 h 05 min », « 45 s ») ; tiret si inconnue. */
     #[AsTwigFilter('duree_lisible')]
     public static function dureeLisible(?int $secondes): string
