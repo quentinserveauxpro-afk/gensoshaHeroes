@@ -189,4 +189,19 @@ class HeroMovement
     {
         return $this->statut->isEnCours();
     }
+
+    // ------------------------------------------------------------------
+    // Ajout (additif) — échelle temporelle accélérée : replanification d'un trajet en cours
+    // (app:game-time:normalize). Ne rallonge jamais : l'appelant garantit arrivée ≤ arrivée prévue.
+    // ------------------------------------------------------------------
+
+    public function replanifier(\DateTimeImmutable $depart, \DateTimeImmutable $arriveePrevue, float $vitesse, \DateTimeImmutable $now): static
+    {
+        $this->dateDepart = $depart;
+        $this->dateArriveePrevue = max($depart, $arriveePrevue);
+        $this->vitesse = max(0.0, $vitesse);
+        $this->updatedAt = $now;
+
+        return $this;
+    }
 }

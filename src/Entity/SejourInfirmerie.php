@@ -170,6 +170,17 @@ class SejourInfirmerie
         return $this;
     }
 
+    /** Replanifie le retour en cours (échelle temporelle accélérée) sans changer son point de départ. */
+    public function replanifierRetour(\DateTimeImmutable $departLe, \DateTimeImmutable $arriveePrevue, float $vitesse, \DateTimeImmutable $now): static
+    {
+        $this->departRetourLe = $departLe;
+        $this->arriveeQgPrevueLe = max($departLe, $arriveePrevue);
+        $this->vitesseRetour = max(0.0, $vitesse);
+        $this->updatedAt = $now;
+
+        return $this;
+    }
+
     public function arriverAuQg(\DateTimeImmutable $date): static
     {
         $this->arriveeQgLe = $date;
